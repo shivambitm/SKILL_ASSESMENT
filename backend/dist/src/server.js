@@ -94,6 +94,7 @@ if (environment_1.isDevelopment) {
     console.log("Development mode: Rate limiting is relaxed");
 }
 const app = (0, express_1.default)();
+app.use(express_1.default.static("public")); // Serve static files from the "public" directory
 // Security middleware
 app.use((0, helmet_1.default)());
 // Setup CORS - must come BEFORE rate limiting
@@ -102,7 +103,11 @@ app.use((0, cors_1.default)({
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin)
             return callback(null, true);
-        if (environment_1.CORS_ORIGINS.indexOf(origin) !== -1) {
+        const allowedOrigins = [
+            "http://localhost:5173", // Development frontend
+            "http://3.224.211.116", // Production frontend
+        ];
+        if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
         }
         else {

@@ -112,7 +112,11 @@ app.use(
     origin: function (origin, callback) {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
-      if (CORS_ORIGINS.indexOf(origin) !== -1) {
+      const allowedOrigins = [
+        "http://localhost:5173", // Development frontend
+        "http://3.224.211.116", // Production frontend
+      ];
+      if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
         console.log(`CORS blocked origin: ${origin}`);
