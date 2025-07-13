@@ -114,7 +114,7 @@ app.use(
       if (!origin) return callback(null, true);
       const allowedOrigins = [
         "http://localhost:5173", // Development frontend
-        "http://3.224.211.116", // Production frontend
+        "https://skills.shivastra.in", // Production frontend
       ];
       if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
