@@ -398,6 +398,7 @@ export const adminApi = {
 
 // Admin Dashboard Stats API
 export const adminDashboardApi = {
+  getSummary: () => api.get("/admin/summary"),
   getQuizStats: () => api.get("/reports/overview"),
   getRecentQuizzes: () => api.get("/reports/quiz-usage"),
   getSkillPerformance: () => api.get("/reports/quiz-usage"),

@@ -45,6 +45,7 @@ const AdminUsers: React.FC = () => {
           <table className="min-w-full border">
             <thead>
               <tr>
+                <th className="px-4 py-2 border">Serial No.</th>
                 <th className="px-4 py-2 border">User ID</th>
                 <th className="px-4 py-2 border">Username</th>
                 <th className="px-4 py-2 border">Email</th>
@@ -57,13 +58,14 @@ const AdminUsers: React.FC = () => {
             <tbody>
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-4">
+                  <td colSpan={8} className="text-center py-4">
                     No users found.
                   </td>
                 </tr>
               ) : (
-                users.map((u) => (
+                users.map((u, idx) => (
                   <tr key={u.id}>
+                    <td className="border px-2 py-1">{idx + 1}</td>
                     <td className="border px-2 py-1">{u.id}</td>
                     <td className="border px-2 py-1">{u.username}</td>
                     <td className="border px-2 py-1">{u.email}</td>

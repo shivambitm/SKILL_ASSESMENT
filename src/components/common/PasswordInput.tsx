@@ -44,9 +44,7 @@ const PasswordInput: React.FC<PasswordInputProps> = ({
   };
 
   const baseInputClassName = `
-    appearance-none relative block w-full px-3 py-2 pr-20 border border-gray-300 
-    placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 
-    focus:border-blue-500 focus:z-10 sm:text-sm
+    appearance-none block w-full focus:outline-none
   `;
 
   return (

@@ -180,7 +180,7 @@ const Login: React.FC = () => {
                 placeholder="Password"
                 autoComplete="current-password"
                 required
-                className="rounded-xl"
+                className="appearance-none block w-full px-5 py-3 rounded-xl border-2 focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-[var(--accent-color)] sm:text-lg theme-transition bg-white/80 dark:bg-gray-800/80 text-blue-900 dark:text-blue-100 border-gray-200 dark:border-gray-700 shadow"
                 showCopyButton={true}
                 style={{
                   background: "var(--bg-primary)",

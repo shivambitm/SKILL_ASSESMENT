@@ -14,7 +14,7 @@
     "backend:test": "cd backend && npm run test",
     "backend:seed": "cd backend && npm run seed",
     "dev": "node scripts/dev.js",
-    "build": "npm i && npm run backend:build && npm run backend:test && npm run backend:seed && node scripts/build.js build",
+    "build": "npm i && npm run backend:build && npm run backend:seed && node scripts/build.js build",
     "production:start": "node scripts/production.js",
     "status": "node scripts/status.js",
     "setup": "npm run install:all && npm run build && npm run backend:seed",

@@ -3,6 +3,41 @@ import { pool } from "../config/database";
 
 const router = express.Router();
 
+router.get("/summary", async (req, res) => {
+  try {
+    // Total users (non-admin, active)
+    const [userRows]: any = await pool.execute(
+      `SELECT COUNT(*) as total_users FROM users WHERE is_active = true AND role = 'user'`
+    );
+    const totalUsers = userRows[0]?.total_users || 0;
+
+    // Total quizzes (all quiz attempts)
+    const [quizRows]: any = await pool.execute(
+      `SELECT COUNT(*) as total_quizzes FROM quiz_attempts WHERE completed_at IS NOT NULL`
+    );
+    const totalQuizzes = quizRows[0]?.total_quizzes || 0;
+
+    // Average score (across all quiz attempts)
+    const [scoreRows]: any = await pool.execute(
+      `SELECT AVG(score_percentage) as avg_score FROM quiz_attempts WHERE completed_at IS NOT NULL`
+    );
+    const avgScore = scoreRows[0]?.avg_score
+      ? Math.round(scoreRows[0].avg_score * 100) / 100
+      : 0;
+
+    res.json({
+      totalUsers,
+      totalQuizzes,
+      avgScore,
+    });
+  } catch (err) {
+    console.error("Error in /summary:", err);
+    res.status(500).json({ message: "Failed to fetch dashboard summary" });
+  }
+});
+
+export default router;
+
 // GET /api/admin/quiz-stats
 router.get("/quiz-stats", async (req, res) => {
   try {
@@ -133,8 +168,6 @@ router.get("/performance-trend", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch performance trend" });
   }
 });
-
-export default router;
 
 // --- ADMIN ANALYTICS: ALL USERS' QUIZ HISTORY ---
 // GET /api/admin/all-quiz-history
