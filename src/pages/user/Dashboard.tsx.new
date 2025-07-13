@@ -1,0 +1,266 @@
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { BookOpen, Trophy, Target, TrendingUp } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import { reportsApi, skillsApi } from '../../services/api';
+import Card from '../../components/common/Card';
+import Button from '../../components/common/Button';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import ErrorMessage from '../../components/common/ErrorMessage';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+
+const Dashboard: React.FC = () => {
+  const { user } = useAuth();
+  useTheme(); // Ensure theme context is used
+  const [userReport, setUserReport] = useState<Record<string, any>>(null);
+  const [skills, setSkills] = useState<Record<string, any>[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch user report
+        const reportResponse = await reportsApi.getUserReport(user!.id);
+        setUserReport(reportResponse.data.data);
+        
+        // Fetch available skills
+        const skillsResponse = await skillsApi.getSkills({ limit: 10, isActive: 'true' });
+        setSkills(skillsResponse.data.data.skills);
+        
+      } catch (err: Error | unknown) {
+        const error = err as { response?: { data?: { message?: string } } };
+        setError(error.response?.data?.message || 'Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-64">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return <ErrorMessage message={error} className="text-center" />;
+  }
+
+  const stats = userReport?.statistics || {};
+  const recentQuizzes = userReport?.recentQuizzes || [];
+  const performanceTrend = userReport?.performanceTrend || [];
+  const skillPerformance = userReport?.skillPerformance || [];
+
+  return (
+    <div className="space-y-6" style={{ color: 'var(--text-primary)' }}>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+          Welcome back, {user?.firstName}!
+        </h1>
+        <Link to="/quiz">
+          <Button variant="primary">Take Quiz</Button>
+        </Link>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="theme-transition rounded-lg shadow-md overflow-hidden">
+          <div className="p-6" style={{ background: 'linear-gradient(to right, var(--accent-color), var(--accent-hover))', color: '#ffffff' }}>
+            <div className="flex items-center">
+              <div className="p-3 rounded-lg" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}>
+                <BookOpen className="w-6 h-6" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium opacity-90">Total Quizzes</p>
+                <p className="text-2xl font-bold">{stats.totalQuizzes}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="theme-transition rounded-lg shadow-md overflow-hidden">
+          <div className="p-6" style={{ background: 'linear-gradient(to right, #10b981, #059669)', color: '#ffffff' }}>
+            <div className="flex items-center">
+              <div className="p-3 rounded-lg" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}>
+                <Trophy className="w-6 h-6" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium opacity-90">Average Score</p>
+                <p className="text-2xl font-bold">{stats.avgScore}%</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="theme-transition rounded-lg shadow-md overflow-hidden">
+          <div className="p-6" style={{ background: 'linear-gradient(to right, #8b5cf6, #7c3aed)', color: '#ffffff' }}>
+            <div className="flex items-center">
+              <div className="p-3 rounded-lg" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}>
+                <Target className="w-6 h-6" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium opacity-90">Best Score</p>
+                <p className="text-2xl font-bold">{stats.bestScore}%</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="theme-transition rounded-lg shadow-md overflow-hidden">
+          <div className="p-6" style={{ background: 'linear-gradient(to right, #f97316, #ea580c)', color: '#ffffff' }}>
+            <div className="flex items-center">
+              <div className="p-3 rounded-lg" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}>
+                <TrendingUp className="w-6 h-6" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium opacity-90">Accuracy Rate</p>
+                <p className="text-2xl font-bold">{stats.accuracyRate}%</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Performance Trend */}
+        <Card>
+          <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Performance Trend</h3>
+          {performanceTrend.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={performanceTrend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                <XAxis dataKey="date" stroke="var(--text-secondary)" />
+                <YAxis stroke="var(--text-secondary)" />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'var(--bg-primary)', 
+                    color: 'var(--text-primary)',
+                    borderColor: 'var(--border-color)'
+                  }} 
+                />
+                <Line type="monotone" dataKey="avgScore" stroke="var(--accent-color)" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="text-center py-8" style={{ color: 'var(--text-secondary)' }}>
+              No performance data available
+            </div>
+          )}
+        </Card>
+
+        {/* Skill Performance */}
+        <Card>
+          <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Skill Performance</h3>
+          {skillPerformance.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={skillPerformance}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                <XAxis dataKey="skillName" stroke="var(--text-secondary)" />
+                <YAxis stroke="var(--text-secondary)" />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'var(--bg-primary)', 
+                    color: 'var(--text-primary)',
+                    borderColor: 'var(--border-color)'
+                  }}
+                />
+                <Bar dataKey="avgScore" fill="var(--accent-color)" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="text-center py-8" style={{ color: 'var(--text-secondary)' }}>
+              No skill performance data available
+            </div>
+          )}
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Quizzes */}
+        <Card>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Recent Quizzes</h3>
+            <Link to="/history" style={{ color: 'var(--accent-color)' }} className="hover:underline text-sm font-medium">
+              View All
+            </Link>
+          </div>
+          <div className="space-y-3">
+            {recentQuizzes.length > 0 ? (
+              recentQuizzes.slice(0, 5).map((quiz: Record<string, any>) => (
+                <div 
+                  key={quiz.id} 
+                  className="flex items-center justify-between p-3 rounded-lg theme-transition"
+                  style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}
+                >
+                  <div>
+                    <p className="font-medium" style={{ color: 'var(--text-primary)' }}>{quiz.skillName}</p>
+                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                      {quiz.correctAnswers}/{quiz.totalQuestions} correct
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{quiz.score}%</p>
+                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                      {new Date(quiz.completedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-4" style={{ color: 'var(--text-secondary)' }}>
+                No recent quizzes
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Available Skills */}
+        <Card>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Available Skills</h3>
+            <Link to="/quiz" style={{ color: 'var(--accent-color)' }} className="hover:underline text-sm font-medium">
+              Take Quiz
+            </Link>
+          </div>
+          <div className="space-y-3">
+            {skills.length > 0 ? (
+              skills.slice(0, 5).map((skill: Record<string, any>) => (
+                <div 
+                  key={skill.id} 
+                  className="flex items-center justify-between p-3 rounded-lg theme-transition"
+                  style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}
+                >
+                  <div>
+                    <p className="font-medium" style={{ color: 'var(--text-primary)' }}>{skill.name}</p>
+                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{skill.category}</p>
+                  </div>
+                  <Link
+                    to={`/quiz?skill=${skill.id}`}
+                    style={{ color: 'var(--accent-color)' }}
+                    className="hover:underline text-sm font-medium"
+                  >
+                    Start Quiz
+                  </Link>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-4" style={{ color: 'var(--text-secondary)' }}>
+                No skills available
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;

@@ -1,0 +1,403 @@
+/* Prevent white flash on Card h3 hover/focus/active (Skill Performance) */
+.card h3:hover,
+.card h3:focus,
+.card h3:active {
+  background: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+html.premium .animate-live-glow {
+  box-shadow: 0 0 32px 0 #fbbf24, 0 0 16px 0 #f472b6;
+  animation: live-glow 2s infinite alternate;
+}
+@keyframes live-glow {
+  0% {
+    box-shadow: 0 0 32px 0 #fbbf24, 0 0 16px 0 #f472b6;
+  }
+  100% {
+    box-shadow: 0 0 64px 8px #fbbf24, 0 0 32px 8px #f472b6;
+  }
+}
+html.premium .confetti-dot {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  opacity: 0.8;
+  z-index: 2;
+}
+html.premium .confetti-dot.live-dot:nth-child(1) {
+  background: #fbbf24;
+  animation: confetti-move-1 2.5s infinite linear alternate;
+}
+html.premium .confetti-dot.live-dot:nth-child(2) {
+  background: #f472b6;
+  animation: confetti-move-2 2.2s infinite linear alternate;
+}
+html.premium .confetti-dot.live-dot:nth-child(3) {
+  background: #fff;
+  animation: confetti-move-3 2.8s infinite linear alternate;
+}
+html.premium .confetti-dot.live-dot:nth-child(4) {
+  background: #fbbf24;
+  animation: confetti-move-4 2.1s infinite linear alternate;
+}
+html.premium .confetti-dot.live-dot:nth-child(5) {
+  background: #f472b6;
+  animation: confetti-move-5 2.7s infinite linear alternate;
+}
+@keyframes confetti-move-1 {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(20px) scale(1.2);
+  }
+}
+@keyframes confetti-move-2 {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-18px) scale(1.1);
+  }
+}
+@keyframes confetti-move-3 {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(15px) scale(1.3);
+  }
+}
+@keyframes confetti-move-4 {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-12px) scale(1.15);
+  }
+}
+@keyframes confetti-move-5 {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(22px) scale(1.18);
+  }
+}
+html.premium .live-text-glow {
+  color: #fff;
+  text-shadow: 0 0 8px #fbbf24, 0 0 16px #f472b6;
+  font-weight: bold;
+  letter-spacing: 1px;
+  z-index: 2;
+}
+html.premium .live-pulse {
+  color: #fbbf24;
+  font-weight: bold;
+  margin-left: 0.5rem;
+  animation: live-pulse 1s infinite alternate;
+}
+@keyframes live-pulse {
+  0% {
+    opacity: 1;
+    text-shadow: 0 0 8px #fbbf24;
+  }
+  100% {
+    opacity: 0.5;
+    text-shadow: 0 0 24px #fbbf24;
+  }
+}
+/* Premium theme: Top Performer celebration styles */
+html.premium .top-performer-celebration {
+  background: linear-gradient(90deg, #fbbf24 0%, #f472b6 100%);
+  color: #fff !important;
+  border-radius: 1.5rem;
+  box-shadow: 0 4px 32px 0 rgba(251, 191, 36, 0.15),
+    0 1.5px 8px 0 rgba(244, 114, 182, 0.12);
+  padding: 1.5rem 2rem;
+  margin-bottom: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+html.premium .top-performer-celebration .confetti {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+html.premium .top-performer-celebration .congrats {
+  font-size: 2rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  margin-bottom: 0.5rem;
+  z-index: 2;
+}
+html.premium .top-performer-celebration .winner-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  z-index: 2;
+}
+html.premium .top-performer-celebration .winner-score {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: #fbbf24;
+  z-index: 2;
+}
+html.premium .premium-pagination-btn {
+  color: #111 !important;
+  font-weight: bold;
+}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global theme variables */
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --text-primary: #1f2937;
+  --text-secondary: #6b7280;
+  --border-color: #e5e7eb;
+  --accent-color: #3b82f6;
+  --accent-hover: #2563eb;
+  --category-bg: #f3f4f6;
+  --category-text: #4b5563;
+}
+
+/* Theme classes for smooth transitions */
+html {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Smooth hover transitions for theme-aware elements */
+.theme-transition {
+  transition: background-color 0.3s ease, color 0.3s ease,
+    border-color 0.3s ease;
+}
+
+/* Custom scrollbar for different themes */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-color);
+}
+
+/* Apply theme to all pages and components */
+#root {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+/* Theme-specific styles for cards, inputs, and other common elements */
+.card {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+button,
+.button,
+input,
+select,
+textarea {
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+/* Premium theme special improvements */
+html.premium {
+  background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+}
+
+html.premium body {
+  background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+}
+
+html.premium .category-tag {
+  background-color: var(--category-bg);
+  color: var(--category-text);
+  border: 1px solid var(--border-color);
+}
+
+html.premium .quiz-option {
+  background-color: rgba(45, 55, 72, 0.5);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+html.premium .quiz-option:hover {
+  background-color: rgba(66, 84, 102, 0.7);
+}
+
+html.premium .quiz-option.selected {
+  background-color: rgba(90, 103, 216, 0.5);
+  border-color: var(--accent-color);
+}
+
+html.premium .profile-field {
+  background-color: rgba(26, 32, 44, 0.6);
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+
+html.premium .option-letter {
+  background-color: rgba(124, 58, 237, 0.8);
+  color: white;
+  font-weight: bold;
+  border: 1px solid rgba(196, 181, 253, 0.5);
+}
+
+html.premium .option-text {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+html.premium label,
+html.premium .text-gray-700,
+html.premium .text-gray-900 {
+  color: var(--text-primary) !important;
+}
+
+/* Premium theme: leaderboard stats font color override */
+html.premium .leaderboard-stat-label {
+  color: #111111 !important; /* true black for max contrast */
+}
+html.premium .leaderboard-stat-value {
+  color: #111111 !important; /* true black for max contrast */
+  font-weight: bold;
+}
+
+html.premium .text-gray-600,
+html.premium .text-gray-500 {
+  color: var(--text-secondary) !important;
+}
+
+html.premium select option {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+html.premium .skill-button {
+  border-width: 2px;
+}
+
+html.premium .skill-button:hover:not(.selected) {
+  border-color: var(--accent-color);
+  background-color: rgba(79, 70, 229, 0.1);
+}
+
+html.premium .skill-button.selected {
+  background-color: rgba(124, 58, 237, 0.7) !important;
+  border-color: var(--accent-color) !important;
+  box-shadow: 0 0 0 1px var(--accent-color);
+}
+
+html.premium .skill-button.selected h3 {
+  color: white !important;
+  font-weight: 600;
+}
+
+html.premium .skill-button.selected p,
+html.premium .skill-button.selected span {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Improve selected skill button visibility for all themes */
+.skill-button.selected {
+  background-color: var(--accent-color) !important;
+  border-color: var(--accent-hover) !important;
+  color: white !important;
+}
+
+.skill-button.selected h3 {
+  color: white !important;
+}
+
+.skill-button.selected p,
+.skill-button.selected span {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.skill-button .category-tag {
+  background-color: var(--category-bg, #f3f4f6);
+  color: var(--category-text, #4b5563);
+}
+
+/* Leaderboard styling improvements for premium theme */
+html.premium .leaderboard-select {
+  background-color: rgba(26, 32, 44, 0.8);
+  color: white;
+  border-color: var(--border-color);
+}
+
+html.premium .leaderboard-select option {
+  background-color: #1a1a2e;
+  color: white;
+}
+
+html.premium select:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3);
+}
+
+/* Improving form input field visibility in premium theme */
+html.premium input,
+html.premium textarea {
+  background-color: rgba(26, 32, 44, 0.7);
+  color: white;
+  border-color: var(--border-color);
+}
+
+html.premium input::placeholder,
+html.premium textarea::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+html.premium label,
+html.premium .text-gray-700 {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Improving PasswordInput visibility in premium theme */
+html.premium input[type="password"],
+html.premium input[type="text"][autocomplete="new-password"],
+html.premium input[type="text"][autocomplete="current-password"] {
+  background-color: rgba(26, 32, 44, 0.7);
+  color: white;
+  border-color: var(--border-color);
+}
+
+html.premium button.text-gray-400,
+html.premium button.text-gray-600 {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+html.premium button.text-gray-400:hover,
+html.premium button.text-gray-600:hover {
+  color: white;
+}

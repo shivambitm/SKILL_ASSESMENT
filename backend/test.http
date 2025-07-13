@@ -1,0 +1,27 @@
+### Test Auth Endpoints
+
+# Test the simple auth test route
+GET http://localhost:5000/api/auth/test
+
+###
+
+# Test the register endpoint  
+POST http://localhost:5000/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123",
+  "firstName": "John",
+  "lastName": "Doe"
+}
+
+###
+
+# Test the root endpoint
+GET http://localhost:5000/
+
+###
+
+# Test the health endpoint
+GET http://localhost:5000/health
