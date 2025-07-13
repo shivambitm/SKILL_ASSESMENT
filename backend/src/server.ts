@@ -101,6 +101,7 @@ if (isDevelopment) {
 }
 
 const app = express();
+app.use(express.static("public")); // Serve static files from the "public" directory
 
 // Security middleware
 app.use(helmet());

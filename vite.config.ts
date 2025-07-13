@@ -5,6 +5,7 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   root: ".",
   plugins: [react()],
+  base: "./", // Added base property for correct asset paths in production
   build: {
     rollupOptions: {
       input: "index.html",
