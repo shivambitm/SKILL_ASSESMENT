@@ -31,13 +31,13 @@
 
 import express from "express";
 import { pool } from "../config/database";
-import { authenticate } from "../middleware/auth";
+import { authenticate, CustomRequest } from "../middleware/auth";
 import { validate, quizSchemas } from "../middleware/validation";
 
 const router = express.Router();
 
 // Add more robust logging to the backend's quiz routes
-router.use((req, res, next) => {
+router.use((req: CustomRequest, res, next) => {
   if (req.path.startsWith("/answer") || req.path.startsWith("/complete")) {
     console.log(`Quiz API ${req.method} ${req.path}:`, {
       body: req.body,
@@ -49,7 +49,7 @@ router.use((req, res, next) => {
 });
 
 // Start quiz attempt
-router.post("/start", authenticate, async (req, res) => {
+router.post("/start", authenticate, async (req: CustomRequest, res) => {
   /**
    * @swagger
    * /quiz/start:
@@ -126,30 +126,18 @@ router.post("/start", authenticate, async (req, res) => {
 
     const quizAttemptId = (result as any).lastInsertRowid;
 
-    console.log("🎯 Quiz attempt created:", {
-      quizAttemptId,
-      type: typeof quizAttemptId,
-      value: quizAttemptId,
-      skill: skill.name,
-      userId: req.user!.userId,
-    });
-
-    const responseData = {
-      id: quizAttemptId,
-      userId: req.user!.userId,
-      skillId,
-      skillName: skill.name,
-      totalQuestions: questionCount,
-      startedAt: new Date(),
-    };
-
-    console.log("🚀 Sending response data:", responseData);
-
     res.status(201).json({
       success: true,
       message: "Quiz started successfully",
       data: {
-        quizAttempt: responseData,
+        quizAttempt: {
+          id: quizAttemptId,
+          userId: req.user!.userId,
+          skillId,
+          skillName: skill.name,
+          totalQuestions: questionCount,
+          startedAt: new Date(),
+        },
       },
     });
   } catch (error) {
@@ -166,7 +154,7 @@ router.post(
   "/answer",
   authenticate,
   validate(quizSchemas.submitAnswer),
-  async (req, res) => {
+  async (req: CustomRequest, res) => {
     try {
       let { quizAttemptId, questionId, selectedAnswer, timeTaken } = req.body;
 
@@ -274,125 +262,78 @@ router.post(
 );
 
 // Complete quiz
-router.post(
-  "/complete",
-  authenticate,
-  (req, res, next) => {
-    console.log("Quiz complete validation debugging:", {
-      body: req.body,
-      quizAttemptId: req.body.quizAttemptId,
-      userId: req.user?.userId,
-      timestamp: new Date().toISOString(),
-    });
-    next();
-  },
-  /**
-   * @swagger
-   * /quiz/complete:
-   *   post:
-   *     summary: Complete a quiz attempt
-   *     tags: [Quiz]
-   *     security:
-   *       - bearerAuth: []
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             required:
-   *               - quizAttemptId
-   *               - timeTaken
-   *             properties:
-   *               quizAttemptId:
-   *                 type: integer
-   *               timeTaken:
-   *                 type: number
-   *                 description: Total time taken (seconds)
-   *     responses:
-   *       200:
-   *         description: Quiz completed
-   *       400:
-   *         description: Quiz already completed or invalid input
-   *       401:
-   *         description: Unauthorized
-   *       404:
-   *         description: Quiz attempt not found
-   */
-  validate(quizSchemas.completeQuiz),
-  async (req, res) => {
-    try {
-      const { quizAttemptId, timeTaken } = req.body;
+router.post("/complete", authenticate, async (req: CustomRequest, res) => {
+  try {
+    const { quizAttemptId, timeTaken } = req.body;
 
-      console.log("Complete quiz request:", {
-        quizAttemptId,
-        timeTaken,
-        userId: req.user?.userId,
-      });
+    // Check if quiz attempt exists and belongs to user
+    const [quizCheck] = await pool.execute(
+      "SELECT id, user_id, total_questions, completed_at FROM quiz_attempts WHERE id = ? AND user_id = ?",
+      [quizAttemptId, req.user!.userId]
+    );
 
-      // Check if quiz attempt exists and belongs to user
-      const [quizCheck] = await pool.execute(
-        "SELECT id, user_id, total_questions, completed_at FROM quiz_attempts WHERE id = ? AND user_id = ?",
-        [quizAttemptId, req.user!.userId]
-      );
-
-      if ((quizCheck as any[]).length === 0) {
-        return res.status(404).json({
-          success: false,
-          message: "Quiz attempt not found",
-        });
-      }
-
-      const quizAttempt = (quizCheck as any[])[0];
-
-      if (quizAttempt.completed_at) {
-        return res.status(400).json({
-          success: false,
-          message: "Quiz has already been completed",
-        });
-      }
-
-      // Calculate score
-      const [scoreResult] = await pool.execute(
-        "SELECT COUNT(*) as correct_count FROM quiz_answers WHERE quiz_attempt_id = ? AND is_correct = true",
-        [quizAttemptId]
-      );
-
-      const correctAnswers = (scoreResult as any[])[0].correct_count;
-      const scorePercentage =
-        (correctAnswers / quizAttempt.total_questions) * 100;
-
-      // Update quiz attempt
-
-      await pool.execute(
-        "UPDATE quiz_attempts SET correct_answers = ?, score_percentage = ?, time_taken = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?",
-        [correctAnswers, scorePercentage, timeTaken, quizAttemptId]
-      );
-
-      res.json({
-        success: true,
-        message: "Quiz completed successfully",
-        data: {
-          score: {
-            totalQuestions: quizAttempt.total_questions,
-            correctAnswers,
-            scorePercentage: Math.round(scorePercentage * 100) / 100,
-            timeTaken,
-          },
-        },
-      });
-    } catch (error) {
-      console.error("Complete quiz error:", error);
-      res.status(500).json({
+    const quizAttempts = quizCheck as {
+      id: number;
+      user_id: number;
+      total_questions: number;
+      completed_at: string | null;
+    }[];
+    if (quizAttempts.length === 0) {
+      return res.status(404).json({
         success: false,
-        message: "Failed to complete quiz",
+        message: "Quiz attempt not found",
       });
     }
+
+    const quizAttempt = quizAttempts[0];
+
+    if (quizAttempt.completed_at) {
+      return res.status(400).json({
+        success: false,
+        message: "Quiz has already been completed",
+      });
+    }
+
+    // Calculate score
+    const [scoreResult] = await pool.execute(
+      "SELECT COUNT(*) as correct_count FROM quiz_answers WHERE quiz_attempt_id = ? AND is_correct = true",
+      [quizAttemptId]
+    );
+
+    const correctAnswers = (scoreResult as any[])[0].correct_count;
+    const scorePercentage =
+      (correctAnswers / quizAttempt.total_questions) * 100;
+
+    // Update quiz attempt
+
+    await pool.execute(
+      "UPDATE quiz_attempts SET correct_answers = ?, score_percentage = ?, time_taken = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?",
+      [correctAnswers, scorePercentage, timeTaken, quizAttemptId]
+    );
+
+    res.json({
+      success: true,
+      message: "Quiz completed successfully",
+      data: {
+        score: {
+          totalQuestions: quizAttempt.total_questions,
+          correctAnswers,
+          scorePercentage: Math.round(scorePercentage * 100) / 100,
+          timeTaken,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Complete quiz error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to complete quiz",
+    });
   }
-);
+});
 
 // Get quiz history for user
-router.get("/history", authenticate, async (req, res) => {
+router.get("/history", authenticate, async (req: CustomRequest, res) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -462,7 +403,7 @@ router.get("/history", authenticate, async (req, res) => {
 });
 
 // Get quiz details
-router.get("/:id", authenticate, async (req, res) => {
+router.get("/:id", authenticate, async (req: CustomRequest, res) => {
   try {
     const quizAttemptId = parseInt(req.params.id);
 

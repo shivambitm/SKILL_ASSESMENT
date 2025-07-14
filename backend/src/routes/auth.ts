@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import { pool } from "../config/database";
 import { validate, authSchemas } from "../middleware/validation";
-import { authenticate } from "../middleware/auth";
+import { authenticate, CustomRequest } from "../middleware/auth";
 
 // Ensure environment variables are loaded
 dotenv.config();
@@ -169,78 +169,82 @@ router.post("/register", async (req, res) => {
  */
 
 // Login user
-router.post("/login", validate(authSchemas.login), async (req, res) => {
-  try {
-    const { email, password } = req.body;
+router.post(
+  "/login",
+  validate(authSchemas.login),
+  async (req: CustomRequest, res) => {
+    try {
+      const { email, password } = req.body;
 
-    // Find user
-    const [rows] = await pool.execute(
-      "SELECT id, email, password, first_name, last_name, role, is_active FROM users WHERE email = ?",
-      [email]
-    );
+      // Find user
+      const [rows] = await pool.execute(
+        "SELECT id, email, password, first_name, last_name, role, is_active FROM users WHERE email = ?",
+        [email]
+      );
 
-    const users = rows as any[];
-    if (users.length === 0) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid credentials",
-      });
-    }
+      const users = rows as any[];
+      if (users.length === 0) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid credentials",
+        });
+      }
 
-    const user = users[0];
+      const user = users[0];
 
-    // Check if user is active
-    if (!user.is_active) {
-      return res.status(401).json({
-        success: false,
-        message: "Account has been deactivated",
-      });
-    }
+      // Check if user is active
+      if (!user.is_active) {
+        return res.status(401).json({
+          success: false,
+          message: "Account has been deactivated",
+        });
+      }
 
-    // Check password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid credentials",
-      });
-    }
+      // Check password
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid credentials",
+        });
+      }
 
-    // Generate JWT token
-    const jwtSecret = process.env.JWT_SECRET;
-    console.log("JWT_SECRET loaded:", jwtSecret ? "✅ Yes" : "❌ No");
-    if (!jwtSecret) {
-      throw new Error("JWT_SECRET is not defined");
-    }
+      // Generate JWT token
+      const jwtSecret = process.env.JWT_SECRET;
+      console.log("JWT_SECRET loaded:", jwtSecret ? "✅ Yes" : "❌ No");
+      if (!jwtSecret) {
+        throw new Error("JWT_SECRET is not defined");
+      }
 
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
-      jwtSecret,
-      { expiresIn: process.env.JWT_EXPIRE || "7d" } as jwt.SignOptions
-    );
+      const token = jwt.sign(
+        { userId: user.id, email: user.email, role: user.role },
+        jwtSecret,
+        { expiresIn: process.env.JWT_EXPIRE || "7d" } as jwt.SignOptions
+      );
 
-    res.json({
-      success: true,
-      message: "Login successful",
-      data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          role: user.role,
+      res.json({
+        success: true,
+        message: "Login successful",
+        data: {
+          user: {
+            id: user.id,
+            email: user.email,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            role: user.role,
+          },
+          token,
         },
-        token,
-      },
-    });
-  } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Login failed",
-    });
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Login failed",
+      });
+    }
   }
-});
+);
 /**
  * @swagger
  * /api/auth/me:
@@ -257,7 +261,7 @@ router.post("/login", validate(authSchemas.login), async (req, res) => {
  */
 
 // Get current user
-router.get("/me", authenticate, async (req, res) => {
+router.get("/me", authenticate, async (req: CustomRequest, res) => {
   try {
     const [rows] = await pool.execute(
       "SELECT id, email, first_name, last_name, role, created_at FROM users WHERE id = ?",
@@ -324,92 +328,96 @@ router.get("/me", authenticate, async (req, res) => {
  */
 
 // Change password
-router.put("/change-password", authenticate, async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
+router.put(
+  "/change-password",
+  authenticate,
+  async (req: CustomRequest, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
 
-    console.log("🔐 Password change request:", {
-      userId: req.user!.userId,
-      currentPasswordLength: currentPassword?.length,
-      newPasswordLength: newPassword?.length,
-      timestamp: new Date().toISOString(),
-    });
+      console.log("🔐 Password change request:", {
+        userId: req.user!.userId,
+        currentPasswordLength: currentPassword?.length,
+        newPasswordLength: newPassword?.length,
+        timestamp: new Date().toISOString(),
+      });
 
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({
+          success: false,
+          message: "Current password and new password are required",
+        });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({
+          success: false,
+          message: "New password must be at least 6 characters long",
+        });
+      }
+
+      // Get current user
+      const [rows] = await pool.execute(
+        "SELECT password FROM users WHERE id = ?",
+        [req.user!.userId]
+      );
+
+      const users = rows as any[];
+      if (users.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      console.log("🔍 Password verification:", {
+        userId: req.user!.userId,
+        hasStoredPassword: !!users[0].password,
+        storedPasswordLength: users[0].password?.length,
+        providedPasswordLength: currentPassword.length,
+      });
+
+      // Verify current password
+      const isCurrentPasswordValid = await bcrypt.compare(
+        currentPassword,
+        users[0].password
+      );
+
+      console.log("✅ Password comparison result:", {
+        isCurrent: isCurrentPasswordValid,
+        userId: req.user!.userId,
+      });
+
+      if (!isCurrentPasswordValid) {
+        return res.status(400).json({
+          success: false,
+          message: "Current password is incorrect",
+        });
+      }
+
+      // Hash new password
+      const saltRounds = 12;
+      const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+      // Update password
+      await pool.execute("UPDATE users SET password = ? WHERE id = ?", [
+        hashedNewPassword,
+        req.user!.userId,
+      ]);
+
+      res.json({
+        success: true,
+        message: "Password changed successfully",
+      });
+    } catch (error) {
+      console.error("Change password error:", error);
+      res.status(500).json({
         success: false,
-        message: "Current password and new password are required",
+        message: "Failed to change password",
       });
     }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: "New password must be at least 6 characters long",
-      });
-    }
-
-    // Get current user
-    const [rows] = await pool.execute(
-      "SELECT password FROM users WHERE id = ?",
-      [req.user!.userId]
-    );
-
-    const users = rows as any[];
-    if (users.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    console.log("🔍 Password verification:", {
-      userId: req.user!.userId,
-      hasStoredPassword: !!users[0].password,
-      storedPasswordLength: users[0].password?.length,
-      providedPasswordLength: currentPassword.length,
-    });
-
-    // Verify current password
-    const isCurrentPasswordValid = await bcrypt.compare(
-      currentPassword,
-      users[0].password
-    );
-
-    console.log("✅ Password comparison result:", {
-      isCurrent: isCurrentPasswordValid,
-      userId: req.user!.userId,
-    });
-
-    if (!isCurrentPasswordValid) {
-      return res.status(400).json({
-        success: false,
-        message: "Current password is incorrect",
-      });
-    }
-
-    // Hash new password
-    const saltRounds = 12;
-    const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-
-    // Update password
-    await pool.execute("UPDATE users SET password = ? WHERE id = ?", [
-      hashedNewPassword,
-      req.user!.userId,
-    ]);
-
-    res.json({
-      success: true,
-      message: "Password changed successfully",
-    });
-  } catch (error) {
-    console.error("Change password error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to change password",
-    });
   }
-});
+);
 /**
  * @swagger
  * /api/auth/debug-user:
@@ -426,7 +434,7 @@ router.put("/change-password", authenticate, async (req, res) => {
  */
 
 // Debug endpoint to check user information (temporary)
-router.get("/debug-user", authenticate, async (req, res) => {
+router.get("/debug-user", authenticate, async (req: CustomRequest, res) => {
   try {
     const [rows] = await pool.execute(
       "SELECT id, email, first_name, last_name, role, is_active, created_at FROM users WHERE id = ?",
@@ -486,40 +494,44 @@ router.get("/debug-user", authenticate, async (req, res) => {
  */
 
 // Temporary password reset endpoint for debugging (REMOVE IN PRODUCTION)
-router.post("/debug-reset-password", authenticate, async (req, res) => {
-  try {
-    const { newPassword } = req.body;
+router.post(
+  "/debug-reset-password",
+  authenticate,
+  async (req: CustomRequest, res) => {
+    try {
+      const { newPassword } = req.body;
 
-    if (!newPassword || newPassword.length < 6) {
-      return res.status(400).json({
+      if (!newPassword || newPassword.length < 6) {
+        return res.status(400).json({
+          success: false,
+          message: "New password must be at least 6 characters long",
+        });
+      }
+
+      console.log("🔧 DEBUG: Resetting password for user:", req.user!.userId);
+
+      // Hash new password
+      const saltRounds = 12;
+      const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+      // Update password without checking current password
+      await pool.execute("UPDATE users SET password = ? WHERE id = ?", [
+        hashedNewPassword,
+        req.user!.userId,
+      ]);
+
+      res.json({
+        success: true,
+        message: "Password reset successfully (DEBUG MODE)",
+      });
+    } catch (error) {
+      console.error("Debug password reset error:", error);
+      res.status(500).json({
         success: false,
-        message: "New password must be at least 6 characters long",
+        message: "Failed to reset password",
       });
     }
-
-    console.log("🔧 DEBUG: Resetting password for user:", req.user!.userId);
-
-    // Hash new password
-    const saltRounds = 12;
-    const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-
-    // Update password without checking current password
-    await pool.execute("UPDATE users SET password = ? WHERE id = ?", [
-      hashedNewPassword,
-      req.user!.userId,
-    ]);
-
-    res.json({
-      success: true,
-      message: "Password reset successfully (DEBUG MODE)",
-    });
-  } catch (error) {
-    console.error("Debug password reset error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to reset password",
-    });
   }
-});
+);
 
 export default router;

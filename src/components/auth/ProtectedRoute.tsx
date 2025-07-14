@@ -34,6 +34,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  if (typeof user.role !== "string") {
+    console.log("❌ Invalid user object, redirecting to login...");
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
   if (requiredRole && user.role !== requiredRole) {
     console.log("🚫 Insufficient role, redirecting to dashboard...");
     return <Navigate to="/dashboard" replace />;

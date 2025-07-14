@@ -206,6 +206,7 @@ app.use("/api/users", users_1.default);
 app.use("/api/skills", skills_1.default);
 app.use("/api/questions", questions_1.default);
 app.use("/api/quiz", quiz_1.default);
+app.use("/api/reports", reports_1.default);
 // Mount reports router for admin dashboard analytics
 app.use("/api/reports", reports_1.default);
 app.use("/api/admin", adminReports_1.default);

@@ -1,5 +1,5 @@
 import React from "react";
-import { Palette, Sun, Moon, Star, Sparkles } from "lucide-react";
+import { Palette, Sun, Star, Sparkles } from "lucide-react";
 import { useTheme, ThemeType } from "../../contexts/ThemeContext";
 
 const ThemeSwitcher: React.FC = () => {
@@ -9,8 +9,6 @@ const ThemeSwitcher: React.FC = () => {
     switch (themeType) {
       case "light":
         return <Sun className="w-4 h-4" />;
-      case "dark":
-        return <Moon className="w-4 h-4" />;
       case "premium":
         return <Star className="w-4 h-4" />;
       case "anime":

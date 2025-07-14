@@ -89,145 +89,25 @@ router.get("/quiz-usage", auth_1.authenticate, (0, auth_1.authorize)(["admin"]),
 router.get("/user/:userId", auth_1.authenticate, async (req, res) => {
     try {
         const userId = parseInt(req.params.userId);
-        const period = req.query.period || "all"; // all, week, month
-        // Check if user can access this report
-        if (req.user.role !== "admin" && req.user.userId !== userId) {
-            return res.status(403).json({
-                success: false,
-                message: "Access denied",
-            });
+        if (!req.user ||
+            (req.user.role !== "admin" && req.user.userId !== userId)) {
+            return res.status(403).json({ success: false, message: "Access denied" });
         }
-        // Check if user exists
-        const [userCheck] = await database_1.pool.execute("SELECT id, first_name, last_name, email FROM users WHERE id = ?", [userId]);
-        if (userCheck.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: "User not found",
-            });
+        const [rows] = await database_1.pool.execute("SELECT id, email, first_name, last_name, role, created_at FROM users WHERE id = ?", [userId]);
+        const users = rows;
+        if (users.length === 0) {
+            return res
+                .status(404)
+                .json({ success: false, message: "User not found" });
         }
-        const user = userCheck[0];
-        // Build date filter
-        let dateFilter = "";
-        if (period === "week") {
-            dateFilter = "AND qa.completed_at >= DATE_SUB(NOW(), INTERVAL 1 WEEK)";
-        }
-        else if (period === "month") {
-            dateFilter = "AND qa.completed_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)";
-        }
-        // Get overall statistics
-        const [overallStats] = await database_1.pool.execute(`SELECT 
-        COUNT(*) as total_quizzes,
-        AVG(score_percentage) as avg_score,
-        MAX(score_percentage) as best_score,
-        MIN(score_percentage) as worst_score,
-        SUM(correct_answers) as total_correct,
-        SUM(total_questions) as total_questions,
-        AVG(time_taken) as avg_time_taken
-       FROM quiz_attempts qa
-       WHERE user_id = ? AND completed_at IS NOT NULL ${dateFilter}`, [userId]);
-        const stats = overallStats[0];
-        // Get number of unique skills assessed
-        const [skillsAssessedResult] = await database_1.pool.execute(`SELECT COUNT(DISTINCT skill_id) as skills_assessed
-       FROM quiz_attempts
-       WHERE user_id = ? AND completed_at IS NOT NULL ${dateFilter}`, [userId]);
-        const skillsAssessed = skillsAssessedResult[0]?.skills_assessed || 0;
-        // Get skill-wise performance
-        const [skillStats] = await database_1.pool.execute(`SELECT 
-        s.id as skill_id,
-        s.name as skill_name,
-        COUNT(*) as attempts,
-        AVG(qa.score_percentage) as avg_score,
-        MAX(qa.score_percentage) as best_score,
-        SUM(qa.correct_answers) as total_correct,
-        SUM(qa.total_questions) as total_questions
-       FROM quiz_attempts qa
-       LEFT JOIN skills s ON qa.skill_id = s.id
-       WHERE qa.user_id = ? AND qa.completed_at IS NOT NULL ${dateFilter}
-       GROUP BY s.id, s.name
-       ORDER BY avg_score DESC`, [userId]);
-        // Get recent quiz attempts
-        const [recentQuizzes] = await database_1.pool.execute(`SELECT 
-        qa.id,
-        qa.score_percentage,
-        qa.correct_answers,
-        qa.total_questions,
-        qa.time_taken,
-        qa.completed_at,
-        s.name as skill_name
-       FROM quiz_attempts qa
-       LEFT JOIN skills s ON qa.skill_id = s.id
-       WHERE qa.user_id = ? AND qa.completed_at IS NOT NULL ${dateFilter}
-       ORDER BY qa.completed_at DESC
-       LIMIT 10`, [userId]);
-        // Get performance trend (last 10 quizzes)
-        const [performanceTrend] = await database_1.pool.execute(`SELECT 
-        DATE(completed_at) as date,
-        AVG(score_percentage) as avg_score,
-        COUNT(*) as quiz_count
-       FROM quiz_attempts
-       WHERE user_id = ? AND completed_at IS NOT NULL ${dateFilter}
-       GROUP BY DATE(completed_at)
-       ORDER BY date DESC
-       LIMIT 10`, [userId]);
-        const reportData = {
-            user: {
-                id: user.id,
-                firstName: user.first_name,
-                lastName: user.last_name,
-                email: user.email,
-            },
-            period,
-            statistics: {
-                totalQuizzes: stats.total_quizzes || 0,
-                avgScore: Math.round((stats.avg_score || 0) * 100) / 100,
-                bestScore: Math.round((stats.best_score || 0) * 100) / 100,
-                worstScore: Math.round((stats.worst_score || 0) * 100) / 100,
-                totalCorrect: stats.total_correct || 0,
-                totalQuestions: stats.total_questions || 0,
-                avgTimeTaken: Math.round((stats.avg_time_taken || 0) * 100) / 100,
-                accuracyRate: stats.total_questions
-                    ? Math.round((stats.total_correct / stats.total_questions) * 10000) /
-                        100
-                    : 0,
-                skillsAssessed,
-            },
-            skillPerformance: skillStats.map((skill) => ({
-                skillId: skill.skill_id,
-                skillName: skill.skill_name,
-                attempts: skill.attempts,
-                avgScore: Math.round((skill.avg_score || 0) * 100) / 100,
-                bestScore: Math.round((skill.best_score || 0) * 100) / 100,
-                accuracyRate: skill.total_questions
-                    ? Math.round((skill.total_correct / skill.total_questions) * 10000) /
-                        100
-                    : 0,
-            })),
-            recentQuizzes: recentQuizzes.map((quiz) => ({
-                id: quiz.id,
-                skillName: quiz.skill_name,
-                score: Math.round((quiz.score_percentage || 0) * 100) / 100,
-                correctAnswers: quiz.correct_answers,
-                totalQuestions: quiz.total_questions,
-                timeTaken: quiz.time_taken,
-                completedAt: quiz.completed_at,
-            })),
-            performanceTrend: performanceTrend.map((trend) => ({
-                date: trend.date,
-                avgScore: Math.round((trend.avg_score || 0) * 100) / 100,
-                quizCount: trend.quiz_count,
-            })),
-        };
-        res.json({
-            success: true,
-            data: reportData,
-        });
+        const user = users[0];
+        res.json({ success: true, data: user });
     }
     catch (error) {
         console.error("Get user report error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Failed to get user report",
-        });
+        res
+            .status(500)
+            .json({ success: false, message: "Failed to get user report" });
     }
 });
 // Get skill gap analysis (Admin only)

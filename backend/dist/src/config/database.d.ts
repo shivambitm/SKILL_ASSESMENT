@@ -6,4 +6,17 @@ export declare const pool: {
     execute: (sql: string, params?: any[]) => unknown[][] | Database.RunResult[];
     end: () => void;
 };
+export declare const registerUser: (userData: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    role: "admin" | "user";
+}) => Promise<{
+    id: number | bigint;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: "admin" | "user";
+}>;
 //# sourceMappingURL=database.d.ts.map

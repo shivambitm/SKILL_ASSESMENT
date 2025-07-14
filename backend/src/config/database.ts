@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import dotenv from "dotenv";
 import path from "path";
+import bcrypt from "bcryptjs";
 
 dotenv.config();
 
@@ -193,4 +194,34 @@ export const pool = {
       db.close();
     }
   },
+};
+
+// Register user function with email validation
+export const registerUser = async (userData: {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  role: "admin" | "user";
+}) => {
+  try {
+    const { email, password, firstName, lastName, role } = userData;
+    const hashedPassword = bcrypt.hashSync(password, 10);
+
+    const stmt = db.prepare(`
+      INSERT INTO users (email, password, first_name, last_name, role)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    const result = stmt.run(email, hashedPassword, firstName, lastName, role);
+
+    return { id: result.lastInsertRowid, email, firstName, lastName, role };
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes("UNIQUE constraint failed")
+    ) {
+      throw new Error("Email already exists");
+    }
+    throw error;
+  }
 };

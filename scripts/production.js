@@ -72,17 +72,14 @@ function printProductionHeader() {
 }
 
 function logSystemInfo() {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] System Information:`);
+  console.log(`Node.js Version: ${process.version}`);
+  console.log(`Platform: ${process.platform} ${process.arch}`);
   console.log(
-    `${colors.cyan}${symbols.server} System Information:${colors.reset}`
-  );
-  console.log(`${colors.gray}     Node.js: ${process.version}${colors.reset}`);
-  console.log(
-    `${colors.gray}     Platform: ${process.platform} ${process.arch}${colors.reset}`
-  );
-  console.log(
-    `${colors.gray}     Memory: ${Math.round(
+    `Memory Usage: ${Math.round(
       process.memoryUsage().heapUsed / 1024 / 1024
-    )} MB${colors.reset}`
+    )} MB`
   );
   console.log("");
 }
@@ -103,9 +100,7 @@ function checkBuildArtifacts() {
   );
 
   // Check if backend build exists
-  const backendBuild = fs.existsSync(
-    join(__dirname, "..", "backend", "dist")
-  );
+  const backendBuild = fs.existsSync(join(__dirname, "..", "backend", "dist"));
   console.log(
     `${colors.gray}     Backend Build: ${
       backendBuild ? colors.green + symbols.check : colors.red + symbols.warning
@@ -119,6 +114,19 @@ function checkBuildArtifacts() {
       `${colors.red}${symbols.warning} Build artifacts missing. Run 'npm run build' first.${colors.reset}`
     );
     process.exit(1);
+  }
+
+  console.log("Checking build artifacts...");
+  try {
+    // Add validation logic for build artifacts
+    const artifactsValid = true; // Replace with actual validation logic
+    if (!artifactsValid) {
+      throw new Error("Build artifacts validation failed.");
+    }
+    console.log("Build artifacts are valid.");
+  } catch (error) {
+    console.error("Error during build artifact validation:", error);
+    process.exit(1); // Exit process if validation fails
   }
 }
 

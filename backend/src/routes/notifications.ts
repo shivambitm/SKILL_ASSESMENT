@@ -1,11 +1,11 @@
 import express from "express";
 import { pool } from "../config/database";
-import { authenticate } from "../middleware/auth";
+import { authenticate, CustomRequest } from "../middleware/auth";
 
 const router = express.Router();
 
 // Admin: Send notification to user
-router.post("/notify", authenticate, async (req, res) => {
+router.post("/notify", authenticate, async (req: CustomRequest, res) => {
   try {
     const { userId, message } = req.body;
     if (!userId || !message) {
@@ -27,7 +27,7 @@ router.post("/notify", authenticate, async (req, res) => {
 });
 
 // User: Get notifications
-router.get("/notifications", authenticate, async (req, res) => {
+router.get("/notifications", authenticate, async (req: CustomRequest, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
@@ -47,7 +47,7 @@ router.get("/notifications", authenticate, async (req, res) => {
 });
 
 // User: Mark notification as read
-router.post("/notifications/read", authenticate, async (req, res) => {
+router.post("/notifications/read", authenticate, async (req: CustomRequest, res) => {
   try {
     const { notificationId } = req.body;
     if (!notificationId) {

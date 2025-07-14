@@ -37,12 +37,8 @@ interface JwtPayload {
   role: string;
 }
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: JwtPayload;
-    }
-  }
+export interface CustomRequest extends Request {
+  user?: JwtPayload;
 }
 
 /**
@@ -61,7 +57,7 @@ declare global {
  * @returns {void}
  */
 export const authenticate = async (
-  req: Request,
+  req: CustomRequest,
   res: Response,
   next: NextFunction
 ) => {
@@ -140,7 +136,7 @@ export const authenticate = async (
  * @returns {function} - Express middleware function
  */
 export const authorize = (roles: string[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: CustomRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,

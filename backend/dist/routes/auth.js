@@ -69,63 +69,78 @@ router.get("/test", (req, res) => {
  */
 // Enhanced Register user (supports admin registration with passcode)
 router.post("/register", async (req, res) => {
-    try {
-        const { email, password, firstName, lastName, role, adminPasscode } = req.body;
-        // Check if user already exists
-        const [existingUsers] = await database_1.pool.execute("SELECT id FROM users WHERE email = ?", [email]);
-        if (existingUsers.length > 0) {
-            return res.status(400).json({
-                success: false,
-                message: "User already exists with this email",
-            });
-        }
-        // Validate role and admin passcode
-        let userRole = "user";
-        if (role === "admin") {
-            if (adminPasscode !== "admin") {
-                return res.status(400).json({
-                    success: false,
-                    message: "Invalid admin passcode",
-                });
-            }
-            userRole = "admin";
-        }
-        // Hash password
-        const saltRounds = 12;
-        const hashedPassword = await bcryptjs_1.default.hash(password, saltRounds);
-        // Create user
-        const [result] = await database_1.pool.execute("INSERT INTO users (email, password, first_name, last_name, role) VALUES (?, ?, ?, ?, ?)", [email, hashedPassword, firstName, lastName, userRole]);
-        const userId = result.lastInsertRowid;
-        // Generate JWT token
-        const jwtSecret = process.env.JWT_SECRET;
-        if (!jwtSecret) {
-            throw new Error("JWT_SECRET is not defined");
-        }
-        const token = jsonwebtoken_1.default.sign({ userId, email, role: userRole }, jwtSecret, {
-            expiresIn: process.env.JWT_EXPIRE || "7d",
-        });
-        res.status(201).json({
-            success: true,
-            message: "User registered successfully",
-            data: {
-                user: {
-                    id: userId,
-                    email,
-                    firstName,
-                    lastName,
-                    role: userRole,
-                },
-                token,
-            },
-        });
+  try {
+    const { email, password, firstName, lastName, role, adminPasscode } =
+      req.body;
+
+    // Check if user already exists
+    const [existingUsers] = await pool.execute(
+      "SELECT id FROM users WHERE email = ?",
+      [email]
+    );
+
+    if ((existingUsers as any[]).length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "User already exists with this email",
+      });
     }
-    catch (error) {
-        console.error("Registration error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Registration failed",
+
+    // Validate role and admin passcode
+    let userRole = "user";
+    if (role === "admin") {
+      if (adminPasscode !== "admin") {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid admin passcode",
         });
+      }
+      userRole = "admin";
     }
+
+    // Hash password
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Create user
+    const [result] = await pool.execute(
+      "INSERT INTO users (email, password, first_name, last_name, role) VALUES (?, ?, ?, ?, ?)",
+      [email, hashedPassword, firstName, lastName, userRole]
+    );
+
+    const userId = (result as any).lastInsertRowid;
+
+    // Generate JWT token
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      throw new Error("JWT_SECRET is not defined");
+    }
+
+    const token = jwt.sign({ userId, email, role: userRole }, jwtSecret, {
+      expiresIn: process.env.JWT_EXPIRE || "7d",
+    } as jwt.SignOptions);
+
+    res.status(201).json({
+      success: true,
+      message: "User registered successfully",
+      data: {
+        user: {
+          id: userId,
+          email,
+          firstName,
+          lastName,
+          role: userRole,
+        },
+        token,
+      },
+    });
+  } catch (error) {
+    console.error("Registration error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Registration failed",
+    });
+  }
 });
 /**
  * @swagger

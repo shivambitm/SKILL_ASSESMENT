@@ -225,6 +225,8 @@ app.use("/api/users", userRoutes);
 app.use("/api/skills", skillRoutes);
 app.use("/api/questions", questionRoutes);
 app.use("/api/quiz", quizRoutes);
+app.use("/api/reports", reportsRouter);
+
 // Mount reports router for admin dashboard analytics
 app.use("/api/reports", reportsRouter);
 app.use("/api/admin", adminReportsRoutes);

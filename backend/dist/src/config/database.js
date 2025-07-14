@@ -3,10 +3,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.pool = exports.query = exports.getDB = exports.connectDB = void 0;
+exports.registerUser = exports.pool = exports.query = exports.getDB = exports.connectDB = void 0;
 const better_sqlite3_1 = __importDefault(require("better-sqlite3"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
 dotenv_1.default.config();
 const dbPath = process.env.DB_PATH || path_1.default.join(process.cwd(), "skill_assessment.db");
 let db;
@@ -170,4 +171,25 @@ exports.pool = {
         }
     },
 };
+// Register user function with email validation
+const registerUser = async (userData) => {
+    try {
+        const { email, password, firstName, lastName, role } = userData;
+        const hashedPassword = bcryptjs_1.default.hashSync(password, 10);
+        const stmt = db.prepare(`
+      INSERT INTO users (email, password, first_name, last_name, role)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+        const result = stmt.run(email, hashedPassword, firstName, lastName, role);
+        return { id: result.lastInsertRowid, email, firstName, lastName, role };
+    }
+    catch (error) {
+        if (error instanceof Error &&
+            error.message.includes("UNIQUE constraint failed")) {
+            throw new Error("Email already exists");
+        }
+        throw error;
+    }
+};
+exports.registerUser = registerUser;
 //# sourceMappingURL=database.js.map

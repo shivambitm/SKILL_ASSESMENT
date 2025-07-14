@@ -3,15 +3,11 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const redisConfig = {
-  host: process.env.REDIS_HOST || "localhost",
-  port: parseInt(process.env.REDIS_PORT || "6379"),
-  password: process.env.REDIS_PASSWORD || undefined,
-};
-
-let client: ReturnType<typeof createClient>;
+// Ensure client is properly typed and initialized
+let client: ReturnType<typeof createClient> | undefined;
 
 export const connectRedis = async () => {
+  console.log("Connecting to Redis...");
   try {
     // Skip Redis connection in development if REDIS_OPTIONAL is set
     if (
@@ -24,14 +20,14 @@ export const connectRedis = async () => {
 
     client = createClient({
       socket: {
-        host: redisConfig.host,
-        port: redisConfig.port,
+        host: process.env.REDIS_HOST || "localhost",
+        port: parseInt(process.env.REDIS_PORT || "6379"),
       },
-      password: redisConfig.password,
+      password: process.env.REDIS_PASSWORD || undefined,
     });
 
     client.on("error", (err) => {
-      console.log("Redis Client Error", err);
+      console.error("Redis Client Error", err);
       // Don't crash the app in development
       if (process.env.NODE_ENV === "development") {
         console.log("Redis errors ignored in development mode");
@@ -40,7 +36,7 @@ export const connectRedis = async () => {
     });
 
     client.on("connect", () => {
-      console.log("Redis connected successfully");
+      console.log("Redis connected successfully.");
     });
 
     await client.connect();
@@ -50,7 +46,7 @@ export const connectRedis = async () => {
     // In development, make Redis optional
     if (process.env.NODE_ENV === "development") {
       console.log("Continuing without Redis in development mode...");
-      client = undefined as any; // Set to undefined so helper functions know Redis is unavailable
+      client = undefined; // Mark client as unavailable
       return;
     }
 
@@ -59,7 +55,9 @@ export const connectRedis = async () => {
   }
 };
 
-export const getRedisClient = () => {
+export const getRedisClient = ():
+  | ReturnType<typeof createClient>
+  | undefined => {
   return client;
 };
 

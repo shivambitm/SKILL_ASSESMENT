@@ -3,15 +3,17 @@ import Joi from "joi";
 
 // Enhanced validation middleware
 export const validate = (schema: Joi.ObjectSchema) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (
+    req: Request & { user?: { userId: number } },
+    res: Response,
+    next: NextFunction
+  ) => {
     const { error } = schema.validate(req.body, { abortEarly: false });
 
     if (error) {
       const detailedErrors = error.details.map((detail) => ({
         field: detail.path.join("."),
         message: detail.message,
-        type: detail.type,
-        value: detail.context?.value,
       }));
 
       console.log("Validation error:", {
