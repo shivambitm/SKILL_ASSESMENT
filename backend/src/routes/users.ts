@@ -1,6 +1,6 @@
 import express from "express";
 import { pool } from "../config/database";
-import { authenticate, authorize } from "../middleware/auth";
+import { authenticate, authorize, CustomRequest } from "../middleware/auth";
 
 const router = express.Router();
 
@@ -39,79 +39,84 @@ const router = express.Router();
  */
 
 // Get all users (Admin only)
-router.get("/", authenticate, authorize(["admin"]), async (req, res) => {
-  try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const search = (req.query.search as string) || "";
-    const role = (req.query.role as string) || "";
+router.get(
+  "/",
+  authenticate,
+  authorize(["admin"]),
+  async (req: CustomRequest, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const search = (req.query.search as string) || "";
+      const role = (req.query.role as string) || "";
 
-    const offset = (page - 1) * limit;
+      const offset = (page - 1) * limit;
 
-    // Build query conditions
-    let whereClause = "WHERE 1=1";
-    const queryParams: any[] = [];
+      // Build query conditions
+      let whereClause = "WHERE 1=1";
+      const queryParams: any[] = [];
 
-    if (search) {
-      whereClause +=
-        " AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ?)";
-      queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
-    }
+      if (search) {
+        whereClause +=
+          " AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ?)";
+        queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+      }
 
-    if (role) {
-      whereClause += " AND role = ?";
-      queryParams.push(role);
-    }
+      if (role) {
+        whereClause += " AND role = ?";
+        queryParams.push(role);
+      }
 
-    // Get total count
-    const [countResult] = await pool.execute(
-      `SELECT COUNT(*) as total FROM users ${whereClause}`,
-      queryParams
-    );
-    const total = (countResult as any[])[0].total;
+      // Get total count
+      const [countResult] = await pool.execute(
+        `SELECT COUNT(*) as total FROM users ${whereClause}`,
+        queryParams
+      );
+      const total = (countResult as any[])[0].total;
 
-    // Get users
-    const [rows] = await pool.execute(
-      `SELECT id, email, first_name, last_name, role, is_active, created_at 
+      // Get users
+      const [rows] = await pool.execute(
+        `SELECT id, email, first_name, last_name, role, is_active, created_at 
        FROM users ${whereClause} 
        ORDER BY created_at DESC 
        LIMIT ? OFFSET ?`,
-      [...queryParams, limit, offset]
-    );
+        [...queryParams, limit, offset]
+      );
 
-    const users = (rows as any[]).map((user) => ({
-      id: user.id,
-      email: user.email,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      role: user.role,
-      isActive: user.is_active,
-      createdAt: user.created_at,
-    }));
+      const users = (rows as any[]).map((user) => ({
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        role: user.role,
+        isActive: user.is_active,
+        createdAt: user.created_at,
+      }));
 
-    res.json({
-      success: true,
-      data: {
-        users,
-        pagination: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit),
+      res.json({
+        success: true,
+        data: {
+          users,
+          pagination: {
+            page,
+            limit,
+            total,
+            pages: Math.ceil(total / limit),
+          },
         },
-      },
-    });
-  } catch (error) {
-    console.error("Get users error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to get users",
-    });
+      });
+    } catch (error) {
+      console.error("Get users error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get users",
+      });
+    }
   }
-});
+);
 
 // Update own profile (Any authenticated user)
-router.put("/profile", authenticate, async (req, res) => {
+router.put("/profile", authenticate, async (req: CustomRequest, res) => {
   try {
     /**
      * @swagger
@@ -240,47 +245,52 @@ router.put("/profile", authenticate, async (req, res) => {
  */
 
 // Get user by ID (Admin only)
-router.get("/:id", authenticate, authorize(["admin"]), async (req, res) => {
-  try {
-    const userId = parseInt(req.params.id);
+router.get(
+  "/:id",
+  authenticate,
+  authorize(["admin"]),
+  async (req: CustomRequest, res) => {
+    try {
+      const userId = parseInt(req.params.id);
 
-    const [rows] = await pool.execute(
-      "SELECT id, email, first_name, last_name, role, is_active, created_at FROM users WHERE id = ?",
-      [userId]
-    );
+      const [rows] = await pool.execute(
+        "SELECT id, email, first_name, last_name, role, is_active, created_at FROM users WHERE id = ?",
+        [userId]
+      );
 
-    const users = rows as any[];
-    if (users.length === 0) {
-      return res.status(404).json({
+      const users = rows as any[];
+      if (users.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      const user = users[0];
+
+      res.json({
+        success: true,
+        data: {
+          user: {
+            id: user.id,
+            email: user.email,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            role: user.role,
+            isActive: user.is_active,
+            createdAt: user.created_at,
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Get user error:", error);
+      res.status(500).json({
         success: false,
-        message: "User not found",
+        message: "Failed to get user",
       });
     }
-
-    const user = users[0];
-
-    res.json({
-      success: true,
-      data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          role: user.role,
-          isActive: user.is_active,
-          createdAt: user.created_at,
-        },
-      },
-    });
-  } catch (error) {
-    console.error("Get user error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to get user",
-    });
   }
-});
+);
 
 /**
  * @swagger
@@ -321,71 +331,76 @@ router.get("/:id", authenticate, authorize(["admin"]), async (req, res) => {
  */
 
 // Update user (Admin only)
-router.put("/:id", authenticate, authorize(["admin"]), async (req, res) => {
-  try {
-    const userId = parseInt(req.params.id);
-    const { firstName, lastName, role, isActive } = req.body;
+router.put(
+  "/:id",
+  authenticate,
+  authorize(["admin"]),
+  async (req: CustomRequest, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const { firstName, lastName, role, isActive } = req.body;
 
-    // Check if user exists
-    const [existingUsers] = await pool.execute(
-      "SELECT id FROM users WHERE id = ?",
-      [userId]
-    );
+      // Check if user exists
+      const [existingUsers] = await pool.execute(
+        "SELECT id FROM users WHERE id = ?",
+        [userId]
+      );
 
-    if ((existingUsers as any[]).length === 0) {
-      return res.status(404).json({
+      if ((existingUsers as any[]).length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      // Build update query
+      const updateFields = [];
+      const updateValues = [];
+
+      if (firstName) {
+        updateFields.push("first_name = ?");
+        updateValues.push(firstName);
+      }
+      if (lastName) {
+        updateFields.push("last_name = ?");
+        updateValues.push(lastName);
+      }
+      if (role) {
+        updateFields.push("role = ?");
+        updateValues.push(role);
+      }
+      if (typeof isActive === "boolean") {
+        updateFields.push("is_active = ?");
+        updateValues.push(isActive);
+      }
+
+      if (updateFields.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "No fields to update",
+        });
+      }
+
+      updateValues.push(userId);
+
+      await pool.execute(
+        `UPDATE users SET ${updateFields.join(", ")} WHERE id = ?`,
+        updateValues
+      );
+
+      res.json({
+        success: true,
+        message: "User updated successfully",
+      });
+    } catch (error) {
+      console.error("Update user error:", error);
+      res.status(500).json({
         success: false,
-        message: "User not found",
+        message: "Failed to update user",
       });
     }
-
-    // Build update query
-    const updateFields = [];
-    const updateValues = [];
-
-    if (firstName) {
-      updateFields.push("first_name = ?");
-      updateValues.push(firstName);
-    }
-    if (lastName) {
-      updateFields.push("last_name = ?");
-      updateValues.push(lastName);
-    }
-    if (role) {
-      updateFields.push("role = ?");
-      updateValues.push(role);
-    }
-    if (typeof isActive === "boolean") {
-      updateFields.push("is_active = ?");
-      updateValues.push(isActive);
-    }
-
-    if (updateFields.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "No fields to update",
-      });
-    }
-
-    updateValues.push(userId);
-
-    await pool.execute(
-      `UPDATE users SET ${updateFields.join(", ")} WHERE id = ?`,
-      updateValues
-    );
-
-    res.json({
-      success: true,
-      message: "User updated successfully",
-    });
-  } catch (error) {
-    console.error("Update user error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to update user",
-    });
   }
-});
+);
 
 /**
  * @swagger
@@ -410,52 +425,57 @@ router.put("/:id", authenticate, authorize(["admin"]), async (req, res) => {
  */
 
 // Delete user (Admin only)
-router.delete("/:id", authenticate, authorize(["admin"]), async (req, res) => {
-  try {
-    const userId = parseInt(req.params.id);
+router.delete(
+  "/:id",
+  authenticate,
+  authorize(["admin"]),
+  async (req: CustomRequest, res) => {
+    try {
+      const userId = parseInt(req.params.id);
 
-    // Check if user exists
-    const [existingUsers] = await pool.execute(
-      "SELECT id FROM users WHERE id = ?",
-      [userId]
-    );
+      // Check if user exists
+      const [existingUsers] = await pool.execute(
+        "SELECT id FROM users WHERE id = ?",
+        [userId]
+      );
 
-    if ((existingUsers as any[]).length === 0) {
-      return res.status(404).json({
+      if ((existingUsers as any[]).length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      // Don't allow deleting the last admin
+      if (req.user!.userId === userId) {
+        return res.status(400).json({
+          success: false,
+          message: "Cannot delete your own account",
+        });
+      }
+
+      await pool.execute("DELETE FROM users WHERE id = ?", [userId]);
+
+      res.json({
+        success: true,
+        message: "User deleted successfully",
+      });
+    } catch (error) {
+      console.error("Delete user error:", error);
+      res.status(500).json({
         success: false,
-        message: "User not found",
+        message: "Failed to delete user",
       });
     }
-
-    // Don't allow deleting the last admin
-    if (req.user!.userId === userId) {
-      return res.status(400).json({
-        success: false,
-        message: "Cannot delete your own account",
-      });
-    }
-
-    await pool.execute("DELETE FROM users WHERE id = ?", [userId]);
-
-    res.json({
-      success: true,
-      message: "User deleted successfully",
-    });
-  } catch (error) {
-    console.error("Delete user error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to delete user",
-    });
   }
-});
+);
 
 // Get user statistics (Admin only)
 router.get(
   "/stats/overview",
   authenticate,
   authorize(["admin"]),
-  async (req, res) => {
+  async (req: CustomRequest, res) => {
     try {
       /**
        * @swagger
@@ -541,7 +561,7 @@ router.put(
   "/:id/toggle-status",
   authenticate,
   authorize(["admin"]),
-  async (req, res) => {
+  async (req: CustomRequest, res) => {
     try {
       const userId = parseInt(req.params.id);
 

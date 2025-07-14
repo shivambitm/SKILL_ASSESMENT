@@ -32,12 +32,8 @@ interface JwtPayload {
     email: string;
     role: string;
 }
-declare global {
-    namespace Express {
-        interface Request {
-            user?: JwtPayload;
-        }
-    }
+export interface CustomRequest extends Request {
+    user?: JwtPayload;
 }
 /**
  * Middleware to authenticate users using JWT tokens.
@@ -54,7 +50,7 @@ declare global {
  * @param {NextFunction} next - Express next middleware function
  * @returns {void}
  */
-export declare const authenticate: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>> | undefined>;
+export declare const authenticate: (req: CustomRequest, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>> | undefined>;
 /**
  * Middleware to authorize users based on roles.
  *
@@ -66,6 +62,6 @@ export declare const authenticate: (req: Request, res: Response, next: NextFunct
  * @param {string[]} roles - Array of allowed roles for the route
  * @returns {function} - Express middleware function
  */
-export declare const authorize: (roles: string[]) => (req: Request, res: Response, next: NextFunction) => Response<any, Record<string, any>> | undefined;
+export declare const authorize: (roles: string[]) => (req: CustomRequest, res: Response, next: NextFunction) => Response<any, Record<string, any>> | undefined;
 export {};
 //# sourceMappingURL=auth.d.ts.map

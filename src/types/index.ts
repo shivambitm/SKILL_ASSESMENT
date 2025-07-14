@@ -9,11 +9,13 @@ export interface User {
 }
 
 export interface AuthResponse {
-  success: boolean;
-  message: string;
-  data: {
-    user: User;
-    token: string;
+  token: string;
+  user: {
+    userId: number;
+    role: "admin" | "user";
+    email: string;
+    firstName: string;
+    lastName: string;
   };
 }
 

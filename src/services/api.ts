@@ -1,8 +1,3 @@
-// Import a seed-only question into the DB (admin)
-export const importApi = {
-  importSeedQuestion: (question: any) =>
-    api.post("/admin/import-seed-question", question),
-};
 /**
  * API Service Layer - Frontend API Client
  *
@@ -45,8 +40,7 @@ import type {
   SkillGapReport,
   SystemOverview,
   Leaderboard,
-  AssessmentRequest,
-  AssessmentResponse,
+  AssessmentData,
 } from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5002";
@@ -55,6 +49,9 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5002";
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
   timeout: 10000,
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
 // Request interceptor to add auth token
@@ -80,51 +77,31 @@ api.interceptors.request.use(
 
 // Response interceptor to handle errors
 api.interceptors.response.use(
-  (response) => {
-    // Log responses (avoid logging in production)
-    if (import.meta.env.DEV) {
-      console.log(
-        `Response: ${response.config.method?.toUpperCase()} ${
-          response.config.url
-        }`,
-        response.status,
-        response.data
-      );
-    }
-    return response;
-  },
+  (response) => response,
   (error) => {
-    // Log error responses (avoid logging in production)
-    if (import.meta.env.DEV) {
-      console.error(`API Error:`, {
-        url: error.config?.url,
-        method: error.config?.method?.toUpperCase(),
-        status: error.response?.status,
-        data: error.response?.data,
-      });
-    }
-
-    // Handle specific HTTP error codes
+    const timestamp = new Date().toISOString();
     if (error.response?.status === 401) {
+      console.error(
+        `[${timestamp}] Unauthorized access detected. Redirecting to login.`
+      );
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       window.location.href = "/login";
-    } else if (error.response?.status === 429) {
-      // Enhance the rate limit error message
-      const defaultMessage = "Too many requests. Please try again later.";
-      const serverMessage = error.response?.data?.message;
-      const message = serverMessage || defaultMessage;
-
-      error.response.data = {
-        message,
-        status: "error",
-        rateLimitError: true,
-        retryAfter: error.response.headers["retry-after"] || "60",
-      };
-
-      console.warn("Rate limit exceeded:", message);
+    } else if (error.response?.status === 403) {
+      console.error(
+        `[${timestamp}] Forbidden:`,
+        error.response?.data?.message || "Access denied"
+      );
+      alert("You do not have permission to perform this action.");
+    } else if (error.response?.status === 500) {
+      console.error(
+        `[${timestamp}] Server Error:`,
+        error.response?.data?.message || "Internal server error"
+      );
+      alert("An error occurred on the server. Please try again later.");
+    } else {
+      console.error(`[${timestamp}] API Error:`, error);
     }
-
     return Promise.reject(error);
   }
 );
@@ -132,17 +109,28 @@ api.interceptors.response.use(
 // Auth API
 
 export const authApi = {
-  register: (data: {
+  register: async (data: {
     email: string;
     password: string;
     firstName: string;
     lastName: string;
     role: "admin" | "user";
     adminPasscode?: string;
-  }) => api.post<AuthResponse>("/auth/register", data),
+  }) => {
+    try {
+      const response = await api.post<AuthResponse>("/auth/register", data);
+      return response;
+    } catch (error: any) {
+      if (error.response?.data?.code === "SQLITE_CONSTRAINT_UNIQUE") {
+        throw new Error("Email already exists. Please use a different email.");
+      }
+      throw error;
+    }
+  },
 
-  login: (data: { email: string; password: string }) =>
-    api.post<AuthResponse>("/auth/login", data),
+  login: (data: { email: string; password: string }) => {
+    return api.post<AuthResponse>("/auth/login", data);
+  },
 
   getCurrentUser: () => api.get<ApiResponse<{ user: User }>>("/auth/me"),
 
@@ -382,7 +370,7 @@ export const adminApi = {
 
   // Assessment management
   assessQuizAttempt: (attemptId: number, assessmentData: AssessmentData) =>
-    api.post<AssessmentResponse>(`/admin/attempts/${attemptId}/assess`, {
+    api.post(`/admin/attempts/${attemptId}/assess`, {
       assessmentData,
     }),
   getQuizAttempts: (userId: number) =>
@@ -406,3 +394,9 @@ export const adminDashboardApi = {
 };
 
 export default api;
+
+// Import a seed-only question into the DB (admin)
+export const importApi = {
+  importSeedQuestion: (question: Question) =>
+    api.post("/admin/import-seed-question", question),
+};

@@ -108,27 +108,18 @@ router.post("/start", auth_1.authenticate, async (req, res) => {
         // Create quiz attempt
         const [result] = await database_1.pool.execute("INSERT INTO quiz_attempts (user_id, skill_id, total_questions, correct_answers, score_percentage) VALUES (?, ?, ?, 0, 0)", [req.user.userId, skillId, questionCount]);
         const quizAttemptId = result.lastInsertRowid;
-        console.log("🎯 Quiz attempt created:", {
-            quizAttemptId,
-            type: typeof quizAttemptId,
-            value: quizAttemptId,
-            skill: skill.name,
-            userId: req.user.userId,
-        });
-        const responseData = {
-            id: quizAttemptId,
-            userId: req.user.userId,
-            skillId,
-            skillName: skill.name,
-            totalQuestions: questionCount,
-            startedAt: new Date(),
-        };
-        console.log("🚀 Sending response data:", responseData);
         res.status(201).json({
             success: true,
             message: "Quiz started successfully",
             data: {
-                quizAttempt: responseData,
+                quizAttempt: {
+                    id: quizAttemptId,
+                    userId: req.user.userId,
+                    skillId,
+                    skillName: skill.name,
+                    totalQuestions: questionCount,
+                    startedAt: new Date(),
+                },
             },
         });
     }
@@ -221,65 +212,19 @@ router.post("/answer", auth_1.authenticate, (0, validation_1.validate)(validatio
     }
 });
 // Complete quiz
-router.post("/complete", auth_1.authenticate, (req, res, next) => {
-    console.log("Quiz complete validation debugging:", {
-        body: req.body,
-        quizAttemptId: req.body.quizAttemptId,
-        userId: req.user?.userId,
-        timestamp: new Date().toISOString(),
-    });
-    next();
-}, 
-/**
- * @swagger
- * /quiz/complete:
- *   post:
- *     summary: Complete a quiz attempt
- *     tags: [Quiz]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - quizAttemptId
- *               - timeTaken
- *             properties:
- *               quizAttemptId:
- *                 type: integer
- *               timeTaken:
- *                 type: number
- *                 description: Total time taken (seconds)
- *     responses:
- *       200:
- *         description: Quiz completed
- *       400:
- *         description: Quiz already completed or invalid input
- *       401:
- *         description: Unauthorized
- *       404:
- *         description: Quiz attempt not found
- */
-(0, validation_1.validate)(validation_1.quizSchemas.completeQuiz), async (req, res) => {
+router.post("/complete", auth_1.authenticate, async (req, res) => {
     try {
         const { quizAttemptId, timeTaken } = req.body;
-        console.log("Complete quiz request:", {
-            quizAttemptId,
-            timeTaken,
-            userId: req.user?.userId,
-        });
         // Check if quiz attempt exists and belongs to user
         const [quizCheck] = await database_1.pool.execute("SELECT id, user_id, total_questions, completed_at FROM quiz_attempts WHERE id = ? AND user_id = ?", [quizAttemptId, req.user.userId]);
-        if (quizCheck.length === 0) {
+        const quizAttempts = quizCheck;
+        if (quizAttempts.length === 0) {
             return res.status(404).json({
                 success: false,
                 message: "Quiz attempt not found",
             });
         }
-        const quizAttempt = quizCheck[0];
+        const quizAttempt = quizAttempts[0];
         if (quizAttempt.completed_at) {
             return res.status(400).json({
                 success: false,

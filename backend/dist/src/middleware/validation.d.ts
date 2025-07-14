@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import Joi from "joi";
-export declare const validate: (schema: Joi.ObjectSchema) => (req: Request, res: Response, next: NextFunction) => Response<any, Record<string, any>> | undefined;
+export declare const validate: (schema: Joi.ObjectSchema) => (req: Request & {
+    user?: {
+        userId: number;
+    };
+}, res: Response, next: NextFunction) => Response<any, Record<string, any>> | undefined;
 export declare const authSchemas: {
     register: Joi.ObjectSchema<any>;
     login: Joi.ObjectSchema<any>;

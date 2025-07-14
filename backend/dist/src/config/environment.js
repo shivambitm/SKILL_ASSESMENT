@@ -24,12 +24,12 @@ exports.RATE_LIMIT = {
     // In development, use very high limits (effectively disabled)
     // In production, use more restrictive limits
     WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS || "60000"), // 1 minute
-    MAX_REQUESTS: exports.isDevelopment
-        ? 10000
-        : parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "300"),
-    AUTH_MAX_REQUESTS: exports.isDevelopment
-        ? 10000
-        : parseInt(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS || "20"),
+    MAX_REQUESTS: exports.isProduction
+        ? parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "300")
+        : Number.MAX_SAFE_INTEGER,
+    AUTH_MAX_REQUESTS: exports.isProduction
+        ? parseInt(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS || "20")
+        : Number.MAX_SAFE_INTEGER,
 };
 // CORS configuration
 exports.CORS_ORIGINS = (() => {

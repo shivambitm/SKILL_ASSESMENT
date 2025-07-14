@@ -13,8 +13,6 @@ const validate = (schema) => {
             const detailedErrors = error.details.map((detail) => ({
                 field: detail.path.join("."),
                 message: detail.message,
-                type: detail.type,
-                value: detail.context?.value,
             }));
             console.log("Validation error:", {
                 path: req.path,

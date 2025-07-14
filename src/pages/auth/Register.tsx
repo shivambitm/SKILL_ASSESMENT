@@ -4,9 +4,9 @@ import { useAuth } from "../../contexts/AuthContext";
 import Button from "../../components/common/Button";
 import ErrorMessage from "../../components/common/ErrorMessage";
 import PasswordInput from "../../components/common/PasswordInput";
-import ThemeSwitcher from "../../components/common/ThemeSwitcher";
 import { useTheme } from "../../contexts/ThemeContext";
 import { BookOpen } from "lucide-react";
+import "./Register.css"; // Import the external CSS file
 
 const Register: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -60,11 +60,9 @@ const Register: React.FC = () => {
       return;
     }
 
-    if (formData.role === "admin") {
-      if (formData.adminPasscode !== "admin") {
-        setError("Invalid admin passcode");
-        return;
-      }
+    if (formData.role === "admin" && formData.adminPasscode !== "admin") {
+      setError("Invalid admin passcode");
+      return;
     }
 
     setLoading(true);
@@ -75,77 +73,42 @@ const Register: React.FC = () => {
         formData.password,
         formData.firstName,
         formData.lastName,
-        formData.role,
+        formData.role as "admin" | "user",
         formData.role === "admin" ? formData.adminPasscode : undefined
       );
-      navigate("/dashboard");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Registration failed");
+      navigate("/admin/dashboard");
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      setError(error.message || "Registration failed");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div
-      className="min-h-screen flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 theme-transition bg-gradient-to-br from-[var(--bg-primary)] to-[var(--bg-secondary)] dark:from-gray-900 dark:to-gray-800"
-      style={{
-        background:
-          "linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%)",
-      }}
-    >
+    <div className="min-h-screen flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 theme-transition bg-gradient-to-br from-[var(--bg-primary)] to-[var(--bg-secondary)] dark:from-gray-900 dark:to-gray-800">
       {/* Header Bar */}
-      <header
-        className="w-screen left-0 top-0 flex justify-center items-center py-4 bg-white/80 dark:bg-gray-900/80 shadow-2xl border-b border-gray-200 dark:border-gray-700 mb-8 backdrop-blur-md fixed z-30"
-        style={{ minWidth: "100vw" }}
-      >
-        <span
-          className="text-2xl md:text-3xl font-black tracking-tight drop-shadow-lg w-full text-center px-4"
-          style={{ color: "var(--text-primary)" }}
-        >
+      <header className="w-screen left-0 top-0 flex justify-center items-center py-4 bg-white/80 dark:bg-gray-900/80 shadow-2xl border-b border-gray-200 dark:border-gray-700 mb-8 backdrop-blur-md fixed z-30">
+        <span className="text-2xl md:text-3xl font-black tracking-tight drop-shadow-lg w-full text-center px-4">
           Skill Assessment & Reporting Portal
         </span>
       </header>
-      <div style={{ height: "80px" }} /> {/* Spacer for fixed header */}
-      <div
-        className="max-w-md w-full space-y-8 rounded-3xl shadow-2xl p-10 border border-gray-200 dark:border-gray-700"
-        style={{
-          background:
-            "linear-gradient(135deg, var(--bg-primary) 60%, var(--bg-secondary) 100%)",
-          backdropFilter: "blur(24px)",
-          WebkitBackdropFilter: "blur(24px)",
-          boxShadow:
-            "0 8px 32px 0 rgba(31, 38, 135, 0.37), 0 1.5px 4px 0 rgba(0,0,0,0.07)",
-        }}
-      >
+      <div className="spacer" /> {/* Spacer for fixed header */}
+      <div className="max-w-md w-full space-y-8 rounded-3xl shadow-2xl p-10 border border-gray-200 dark:border-gray-700">
         <div>
           <div className="flex justify-center mb-4">
-            <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-xl"
-              style={{
-                background:
-                  "linear-gradient(135deg, var(--accent-color) 60%, var(--accent-hover) 100%)",
-                boxShadow: "0 4px 24px 0 rgba(139,92,246,0.25)",
-              }}
-            >
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-xl">
               <BookOpen className="w-10 h-10 text-white drop-shadow-lg" />
             </div>
           </div>
-          <h2
-            className="mt-2 text-center text-4xl font-black theme-transition drop-shadow-lg"
-            style={{ color: "var(--accent-color)" }}
-          >
+          <h2 className="mt-2 text-center text-4xl font-black theme-transition drop-shadow-lg">
             Create your account
           </h2>
-          <p
-            className="mt-2 text-center text-lg theme-transition"
-            style={{ color: "var(--text-secondary)" }}
-          >
+          <p className="mt-2 text-center text-lg theme-transition">
             Or{" "}
             <Link
               to="/login"
               className="font-bold hover:underline theme-transition"
-              style={{ color: "var(--accent-hover)" }}
             >
               sign in to existing account
             </Link>
@@ -153,15 +116,7 @@ const Register: React.FC = () => {
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div
-            className="rounded-2xl shadow-lg p-6 space-y-6 border border-gray-200 dark:border-gray-800"
-            style={{
-              background:
-                "linear-gradient(120deg, var(--bg-secondary) 80%, var(--bg-primary) 100%)",
-              backdropFilter: "blur(16px)",
-              WebkitBackdropFilter: "blur(16px)",
-            }}
-          >
+          <div className="rounded-2xl shadow-lg p-6 space-y-6 border border-gray-200 dark:border-gray-800">
             <div className="flex items-center mb-2">
               <input
                 id="isAdmin"
