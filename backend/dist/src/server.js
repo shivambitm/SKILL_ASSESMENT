@@ -97,18 +97,24 @@ const app = (0, express_1.default)();
 app.use(express_1.default.static("public")); // Serve static files from the "public" directory
 // Security middleware
 app.use((0, helmet_1.default)());
+app.set("trust proxy", 1); // <== Add this line near the top
 // Setup CORS - must come BEFORE rate limiting
 app.use((0, cors_1.default)({
     origin: function (origin, callback) {
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin)
             return callback(null, true);
-        const allowedOrigins = [
-            "http://localhost:5173", // Development frontend
-            "https://skills.shivastra.in", // Production frontend
-            "https://cautious-fortnight-j7j6p67px4j2pwrg-5173.app.github.dev/"
-        ];
-        if (allowedOrigins.indexOf(origin) !== -1) {
+        // Use CORS_ORIGINS from environment config
+        const allowedOrigins = environment_1.CORS_ORIGINS;
+        // Support both RegExp and string origins
+        const isAllowed = allowedOrigins.some((allowed) => {
+            if (typeof allowed === "string")
+                return allowed === origin;
+            if (allowed instanceof RegExp)
+                return allowed.test(origin);
+            return false;
+        });
+        if (isAllowed) {
             callback(null, true);
         }
         else {
@@ -226,14 +232,14 @@ console.log("All routes mounted successfully");
 app.use(notFound_1.notFound);
 app.use(errorHandler_1.errorHandler);
 // Get port from environment config
-const port = process.env.PORT || 5002;
+const port = Number(process.env.PORT) || 5000;
 // Initialize database and Redis connections
 const startServer = async () => {
     try {
         await (0, database_1.connectDB)();
         await (0, redis_1.connectRedis)();
-        app.listen(port, () => {
-            console.log(`Server running on port ${port}`);
+        app.listen(port, "0.0.0.0", () => {
+            console.log(`The Server is running on port ${port}`);
             console.log(`Environment: ${environment_1.NODE_ENV}`);
             console.log(`Rate limiting: ${environment_1.isDevelopment ? "Relaxed (Development)" : "Strict (Production)"}`);
         });

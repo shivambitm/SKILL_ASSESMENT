@@ -17,7 +17,7 @@ exports.isDevelopment = exports.NODE_ENV === "development";
 exports.isProduction = exports.NODE_ENV === "production";
 exports.isTest = exports.NODE_ENV === "test";
 // Server settings
-exports.PORT = process.env.PORT || 5002;
+exports.PORT = process.env.PORT || 5000;
 exports.HOST = process.env.HOST || "localhost";
 // Rate limiting
 exports.RATE_LIMIT = {
