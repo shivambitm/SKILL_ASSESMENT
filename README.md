@@ -75,7 +75,7 @@ A comprehensive web-based system for skill assessment through quizzes, user mana
 
    ```bash
    git clone https://github.com/shivambitm/SKILL_ASSESMENT.git
-   or can use SSH -> git clone https://github.com/shivambitm/SKILL_ASSESMENT.git
+   or can use SSH -> git clone git@github.com:shivambitm/SKILL_ASSESMENT.git
    cd SKILL_ASSESMENT
    ```
 

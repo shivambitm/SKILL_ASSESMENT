@@ -106,6 +106,7 @@ app.use((0, cors_1.default)({
         const allowedOrigins = [
             "http://localhost:5173", // Development frontend
             "https://skills.shivastra.in", // Production frontend
+            "https://cautious-fortnight-j7j6p67px4j2pwrg-5173.app.github.dev/"
         ];
         if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
