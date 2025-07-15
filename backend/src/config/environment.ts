@@ -17,7 +17,7 @@ export const isProduction = NODE_ENV === "production";
 export const isTest = NODE_ENV === "test";
 
 // Server settings
-export const PORT = process.env.PORT || 5002;
+export const PORT = process.env.PORT || 5000;
 export const HOST = process.env.HOST || "localhost";
 
 // Rate limiting
