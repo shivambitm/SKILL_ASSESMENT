@@ -74,8 +74,9 @@ A comprehensive web-based system for skill assessment through quizzes, user mana
 1. **Clone the repository**
 
    ```bash
-   git clone <repository-url>
-   cd skill-assessment-portal
+   git clone https://github.com/shivambitm/SKILL_ASSESMENT.git
+   or can use SSH -> git clone https://github.com/shivambitm/SKILL_ASSESMENT.git
+   cd SKILL_ASSESMENT
    ```
 
 2. **Install dependencies**
@@ -505,7 +506,7 @@ Access Profile:
 
 Click your name in the header → "Profile Settings"
 Or click "Profile" in the sidebar
-Or visit: http://localhost:5173/profile
+Or visit: {frontend_URL}/profile
 Edit Profile:
 
 Click "Edit" button
