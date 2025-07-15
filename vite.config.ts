@@ -1,11 +1,16 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// https://vitejs.dev/config/
+const isDev = process.env.NODE_ENV === "development";
+const backendUrl = isDev
+  ? "https://cautious-fortnight-j7j6p67px4j2pwrg-5002.app.github.dev/"
+  : "https://cautious-fortnight-j7j6p67px4j2pwrg-5002.app.github.dev/";
+console.log("Vite Proxy Backend URL:", backendUrl);
+
 export default defineConfig({
   root: ".",
   plugins: [react()],
-  base: "./", // Added base property for correct asset paths in production
+  base: "./",
   build: {
     rollupOptions: {
       input: "index.html",
@@ -17,7 +22,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:5002", // <-- updated to match backend port
+        target: backendUrl,
         changeOrigin: true,
         secure: false,
       },
