@@ -140,12 +140,61 @@ A comprehensive web-based system for skill assessment through quizzes, user mana
    # Start both frontend and backend
    npm run dev:full
 
-   # Or start individually
-   # Backend
-   cd backend && npm run dev
-   # Frontend
-   npm run dev
+   # You will see like this in the Terminal
+   hp@DESKTOP-HICFBA3 MINGW64 /f/SKILL_ASSESMENT (feature/fix-errors)
+   $ npm run dev
    ```
+
+> skill-assessment-frontend@1.0.0 dev
+> node scripts/dev.js
+
+════════════════════════════════════════════════════════════════════════════════
+🚀 SKILL ASSESSMENT PORTAL - DEVELOPMENT MODE
+Full-Stack Development Environment
+⏱ Started at 14:24:10
+════════════════════════════════════════════════════════════════════════════════
+
+💻 Frontend Dev Server: http://localhost:5173
+🗄 Backend API Server: http://localhost:5002
+⚡ Hot Reload: Enabled
+
+Press Ctrl+C to stop all servers
+────────────────────────────────────────────────────────────────────────────────
+
+[14:24:11] [BACKEND] [nodemon] 3.1.10
+[14:24:11] [BACKEND] [nodemon] to restart at any time, enter `rs`
+[14:24:11] [BACKEND] [nodemon] watching extensions: ts,json
+[14:24:11] [BACKEND] [nodemon] starting `ts-node --transpile-only src/server.ts src/server.ts`
+[14:24:11] [FRONTEND] ✅ VITE v6.3.5 ready in 421 ms
+[14:24:11] [FRONTEND] ➜ Local: http://localhost:5173/
+[14:24:11] [FRONTEND] ➜ Network: use --host to expose
+[14:24:12] [BACKEND] Environment: development
+[14:24:12] [BACKEND] Development mode: Rate limiting is relaxed
+[14:24:12] [BACKEND] Auth routes module loaded
+[14:24:13] [BACKEND] Starting server in development environment
+[14:24:13] [BACKEND] Mounting auth routes...
+[14:24:13] [BACKEND] All routes mounted successfully
+[14:24:13] [BACKEND] ✅ Database connected successfully
+[14:24:13] [BACKEND] Database migrations completed successfully
+[14:24:13] [BACKEND] Connecting to Redis...
+[14:24:13] [BACKEND] Redis connection skipped in development mode
+[14:24:13] [BACKEND] Server running on port 5002
+[14:24:13] [BACKEND] Rate limiting: Relaxed (Development)
+[14:24:22] [FRONTEND] Browserslist: caniuse-lite is outdated. Please run:
+[14:24:22] [FRONTEND] npx update-browserslist-db@latest
+[14:24:22] [FRONTEND] Why you should do it regularly: https://github.com/browserslist/update-db#readme
+
+# Or start individually
+
+# Backend
+
+cd backend && npm run dev
+
+# Frontend
+
+npm run dev
+
+````
 
 ### Production Deployment
 
@@ -153,10 +202,10 @@ A comprehensive web-based system for skill assessment through quizzes, user mana
 
 1. **Build and start services**
 
-   ```bash
-   cd backend
-   docker-compose up -d
-   ```
+```bash
+cd backend
+docker-compose up -d
+````
 
 2. **Build frontend**
    ```bash
