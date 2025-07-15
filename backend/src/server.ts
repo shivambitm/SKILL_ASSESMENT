@@ -184,6 +184,21 @@ app.get("/health", (req, res) => {
   });
 });
 
+app.get("/api", (req, res) => {
+  res.json({
+    success: true,
+    message: "API is working properly",
+    available: [
+      "/auth",
+      "/users",
+      "/skills",
+      "/questions",
+      "/quiz",
+      "/reports",
+    ],
+  });
+});
+
 // Health check with diagnostic information
 app.get("/health-diagnostic", (req, res) => {
   res.status(200).json({
