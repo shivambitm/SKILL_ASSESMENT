@@ -1,0 +1,50 @@
+services:
+  - type: web
+    name: skill-assessment-backend
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    rootDir: backend
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        value: your-super-secret-jwt-key-here
+      - key: JWT_EXPIRE
+        value: 7d
+      - key: DB_PATH
+        value: ./skill_assessment.db
+      - key: REDIS_HOST
+        value: localhost
+      - key: REDIS_PORT
+        value: 6379
+      - key: REDIS_PASSWORD
+        value: ""
+      - key: CORS_ORIGIN
+        value: https://skills.shivastra.in,http://localhost:5173
+      - key: VITE_API_URL
+        value: https://skills.shivastra.in
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 60000
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: 300
+      - key: AUTH_RATE_LIMIT_MAX_REQUESTS
+        value: 20
+      - key: REDIS_ENABLED
+        value: "true"
+      - key: REDIS_OPTIONAL
+        value: "true"
+      - key: ADMIN_PASSCODE
+        value: admin
+
+  - type: web
+    name: skill-assessment-frontend
+    runtime: static
+    plan: free
+    buildCommand: npm install && npm run build
+    rootDir: frontend
+    publishPath: build
+    envVars:
+      - key: VITE_API_URL
+        value: https://skills.shivastra.in
