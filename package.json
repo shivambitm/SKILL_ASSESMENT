@@ -13,7 +13,7 @@
     "backend:start": "cd backend && npm run start",
     "backend:test": "cd backend && npm run test",
     "backend:seed": "cd backend && npm run seed",
-    "dev": "node scripts/dev.js",
+    "start": "node scripts/dev.js",
     "build": "npm i && npm run frontend:build && npm run backend:build && npm run backend:seed && node scripts/build.js build",
     "production:start": "node scripts/production.js",
     "status": "node scripts/status.js",
