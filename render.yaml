@@ -2,7 +2,7 @@ services:
   - type: web
     name: skill-assessment-backend
     runtime: node
-    plan: free
+    # plan removed; select plan in Render dashboard
     buildCommand: npm install
     startCommand: npm start
     rootDir: backend
@@ -41,7 +41,7 @@ services:
   - type: web
     name: skill-assessment-frontend
     runtime: static
-    plan: free
+    # plan removed; select plan in Render dashboard
     buildCommand: npm install && npm run build
     rootDir: frontend
     envVars:
