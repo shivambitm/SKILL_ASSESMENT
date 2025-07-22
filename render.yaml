@@ -44,7 +44,6 @@ services:
     plan: free
     buildCommand: npm install && npm run build
     rootDir: frontend
-    publishPath: build
     envVars:
       - key: VITE_API_URL
         value: https://skills.shivastra.in
