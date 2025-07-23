@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "start": "node dist/src/server.js",
-    "dev": "nodemon src/server.ts",
+    "dev": "node src/server.ts",
     "build": "tsc",
     "test": "jest",
     "test:watch": "jest --watch",
