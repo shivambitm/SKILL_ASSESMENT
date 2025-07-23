@@ -3,6 +3,7 @@ import { pool } from "../config/database";
 import { authenticate, authorize } from "../middleware/auth";
 import { validate, skillSchemas } from "../middleware/validation";
 import { cacheGet, cacheSet, cacheDel } from "../config/redis";
+// ...existing code...
 
 const router = express.Router();
 
@@ -230,7 +231,6 @@ router.get("/:id", authenticate, async (req: Request, res: Response) => {
  *       401:
  *         description: Unauthorized
  */
-router.post(
   "/",
   authenticate,
   authorize(["admin"]),
@@ -326,7 +326,6 @@ router.post(
  *       404:
  *         description: Skill not found
  */
-router.put(
   "/:id",
   authenticate,
   authorize(["admin"]),
@@ -441,7 +440,6 @@ router.put(
  *       404:
  *         description: Skill not found
  */
-router.delete(
   "/:id",
   authenticate,
   authorize(["admin"]),
@@ -509,7 +507,6 @@ router.delete(
  *       401:
  *         description: Unauthorized
  */
-router.get(
   "/categories/list",
   authenticate,
   async (req: Request, res: Response) => {
@@ -592,7 +589,6 @@ router.get(
  *       401:
  *         description: Unauthorized
  */
-router.post(
   "/with-questions",
   authenticate,
   authorize(["admin"]),

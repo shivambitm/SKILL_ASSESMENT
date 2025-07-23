@@ -33,15 +33,21 @@ import express from "express";
 import { pool } from "../config/database";
 import { authenticate, CustomRequest } from "../middleware/auth";
 import { validate, quizSchemas } from "../middleware/validation";
+import { Request, Response, NextFunction } from "express";
 
 const router = express.Router();
 
 // Add more robust logging to the backend's quiz routes
-router.use((req: CustomRequest, res, next) => {
-  if (req.path.startsWith("/answer") || req.path.startsWith("/complete")) {
-    console.log(`Quiz API ${req.method} ${req.path}:`, {
-      body: req.body,
-      userId: req.user?.userId,
+router.use((req: Request, res: Response, next: NextFunction) => {
+  // If using CustomRequest, cast req as CustomRequest
+  const customReq = req as CustomRequest;
+  if (
+    customReq.path.startsWith("/answer") ||
+    customReq.path.startsWith("/complete")
+  ) {
+    console.log(`Quiz API ${customReq.method} ${customReq.path}:`, {
+      body: customReq.body,
+      userId: customReq.user?.userId,
       timestamp: new Date().toISOString(),
     });
   }
@@ -49,7 +55,8 @@ router.use((req: CustomRequest, res, next) => {
 });
 
 // Start quiz attempt
-router.post("/start", authenticate, async (req: CustomRequest, res) => {
+router.post("/start", authenticate, async (req: Request, res: Response) => {
+  const customReq = req as CustomRequest;
   /**
    * @swagger
    * /quiz/start:
@@ -79,7 +86,7 @@ router.post("/start", authenticate, async (req: CustomRequest, res) => {
    *         description: Unauthorized
    */
   try {
-    const { skillId } = req.body;
+    const { skillId } = customReq.body;
 
     if (!skillId) {
       return res.status(400).json({
@@ -121,7 +128,7 @@ router.post("/start", authenticate, async (req: CustomRequest, res) => {
     // Create quiz attempt
     const [result] = await pool.execute(
       "INSERT INTO quiz_attempts (user_id, skill_id, total_questions, correct_answers, score_percentage) VALUES (?, ?, ?, 0, 0)",
-      [req.user!.userId, skillId, questionCount]
+      [customReq.user!.userId, skillId, questionCount]
     );
 
     const quizAttemptId = (result as any).lastInsertRowid;
@@ -132,7 +139,7 @@ router.post("/start", authenticate, async (req: CustomRequest, res) => {
       data: {
         quizAttempt: {
           id: quizAttemptId,
-          userId: req.user!.userId,
+          userId: customReq.user!.userId,
           skillId,
           skillName: skill.name,
           totalQuestions: questionCount,
@@ -154,9 +161,11 @@ router.post(
   "/answer",
   authenticate,
   validate(quizSchemas.submitAnswer),
-  async (req: CustomRequest, res) => {
+  async (req: Request, res: Response) => {
+    const customReq = req as CustomRequest;
     try {
-      let { quizAttemptId, questionId, selectedAnswer, timeTaken } = req.body;
+      let { quizAttemptId, questionId, selectedAnswer, timeTaken } =
+        customReq.body;
 
       // Type safety for SQLite
       quizAttemptId = Number(quizAttemptId);
@@ -169,7 +178,7 @@ router.post(
         questionId,
         selectedAnswer,
         timeTaken,
-        userId: req.user?.userId,
+        userId: customReq.user?.userId,
         types: {
           quizAttemptId: typeof quizAttemptId,
           questionId: typeof questionId,
@@ -181,7 +190,7 @@ router.post(
       // Check if quiz attempt exists and belongs to user
       const [quizCheck] = await pool.execute(
         "SELECT id, user_id, completed_at FROM quiz_attempts WHERE id = ? AND user_id = ?",
-        [quizAttemptId, req.user!.userId]
+        [quizAttemptId, customReq.user!.userId]
       );
 
       if ((quizCheck as any[]).length === 0) {
@@ -262,14 +271,15 @@ router.post(
 );
 
 // Complete quiz
-router.post("/complete", authenticate, async (req: CustomRequest, res) => {
+router.post("/complete", authenticate, async (req: Request, res: Response) => {
+  const customReq = req as CustomRequest;
   try {
-    const { quizAttemptId, timeTaken } = req.body;
+    const { quizAttemptId, timeTaken } = customReq.body;
 
     // Check if quiz attempt exists and belongs to user
     const [quizCheck] = await pool.execute(
       "SELECT id, user_id, total_questions, completed_at FROM quiz_attempts WHERE id = ? AND user_id = ?",
-      [quizAttemptId, req.user!.userId]
+      [quizAttemptId, customReq.user!.userId]
     );
 
     const quizAttempts = quizCheck as {
@@ -333,17 +343,18 @@ router.post("/complete", authenticate, async (req: CustomRequest, res) => {
 });
 
 // Get quiz history for user
-router.get("/history", authenticate, async (req: CustomRequest, res) => {
+router.get("/history", authenticate, async (req: Request, res: Response) => {
+  const customReq = req as CustomRequest;
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const skillId = (req.query.skillId as string) || "";
+    const page = parseInt(customReq.query.page as string) || 1;
+    const limit = parseInt(customReq.query.limit as string) || 10;
+    const skillId = (customReq.query.skillId as string) || "";
 
     const offset = (page - 1) * limit;
 
     // Build query conditions
     let whereClause = "WHERE qa.user_id = ? AND qa.completed_at IS NOT NULL";
-    const queryParams: any[] = [req.user!.userId];
+    const queryParams: any[] = [customReq.user!.userId];
 
     if (skillId) {
       whereClause += " AND qa.skill_id = ?";
@@ -403,14 +414,15 @@ router.get("/history", authenticate, async (req: CustomRequest, res) => {
 });
 
 // Get quiz details
-router.get("/:id", authenticate, async (req: CustomRequest, res) => {
+router.get("/:id", authenticate, async (req: Request, res: Response) => {
+  const customReq = req as CustomRequest;
   try {
-    const quizAttemptId = parseInt(req.params.id);
+    const quizAttemptId = parseInt(customReq.params.id);
 
     // Check if quiz attempt exists and belongs to user (or user is admin)
     const [quizCheck] = await pool.execute(
       'SELECT id, user_id, skill_id, total_questions, correct_answers, score_percentage, time_taken, started_at, completed_at FROM quiz_attempts WHERE id = ? AND (user_id = ? OR ? = "admin")',
-      [quizAttemptId, req.user!.userId, req.user!.role]
+      [quizAttemptId, customReq.user!.userId, customReq.user!.role]
     );
 
     if ((quizCheck as any[]).length === 0) {

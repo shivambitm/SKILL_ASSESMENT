@@ -3,6 +3,8 @@ import { pool } from "../config/database";
 import { authenticate, authorize } from "../middleware/auth";
 import { validate, questionSchemas } from "../middleware/validation";
 import { cacheGet, cacheSet, cacheDel } from "../config/redis";
+import { CustomRequest } from "../middleware/auth";
+import { Response } from "express";
 
 const router = express.Router();
 /**
@@ -45,22 +47,17 @@ const router = express.Router();
  *         name: search
  *         schema:
  *           type: string
- *         description: Search by question text
  *     responses:
  *       200:
  *         description: List of questions
  *       401:
  *         description: Unauthorized
  */
-
-// Get all questions (Admin only)
-import { Request, Response } from "express";
-// ...existing code...
 router.get(
   "/",
   authenticate,
   authorize(["admin"]),
-  async (req: Request, res: Response) => {
+  async (req: CustomRequest, res: Response) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
@@ -179,7 +176,7 @@ router.get(
 router.get(
   "/quiz/:skillId",
   authenticate,
-  async (req: Request, res: Response) => {
+  async (req: CustomRequest, res: Response) => {
     try {
       const skillId = parseInt(req.params.skillId);
       const limit = parseInt(req.query.limit as string) || 10;
@@ -264,7 +261,7 @@ router.get(
   "/:id",
   authenticate,
   authorize(["admin"]),
-  async (req: Request, res: Response) => {
+  async (req: CustomRequest, res: Response) => {
     try {
       const questionId = parseInt(req.params.id);
 
@@ -367,7 +364,7 @@ router.post(
   authenticate,
   authorize(["admin"]),
   validate(questionSchemas.create),
-  async (req: Request, res: Response) => {
+  async (req: CustomRequest, res: Response) => {
     try {
       const {
         skillId,
@@ -503,7 +500,7 @@ router.put(
   authenticate,
   authorize(["admin"]),
   validate(questionSchemas.update),
-  async (req: Request, res: Response) => {
+  async (req: CustomRequest, res: Response) => {
     try {
       const questionId = parseInt(req.params.id);
       const {
@@ -651,7 +648,7 @@ router.delete(
   "/:id",
   authenticate,
   authorize(["admin"]),
-  async (req: Request, res: Response) => {
+  async (req: CustomRequest, res: Response) => {
     try {
       const questionId = parseInt(req.params.id);
 

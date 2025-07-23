@@ -93,46 +93,53 @@ router.get(
  *       404:
  *         description: User not found
  */
-router.get("/user/:userId", authenticate, async (req: CustomRequest, res) => {
-  try {
-    const userId = parseInt(req.params.userId);
+router.get(
+  "/user/:userId",
+  authenticate,
+  async (req: Request, res: Response) => {
+    const customReq = req as CustomRequest;
+    try {
+      const userId = parseInt(customReq.params.userId);
 
-    if (
-      !req.user ||
-      (req.user.role !== "admin" && req.user.userId !== userId)
-    ) {
-      return res.status(403).json({ success: false, message: "Access denied" });
+      if (
+        !customReq.user ||
+        (customReq.user.role !== "admin" && customReq.user.userId !== userId)
+      ) {
+        return res
+          .status(403)
+          .json({ success: false, message: "Access denied" });
+      }
+
+      const [rows] = await pool.execute(
+        "SELECT id, email, first_name, last_name, role, created_at FROM users WHERE id = ?",
+        [userId]
+      );
+
+      const users = rows as {
+        id: number;
+        email: string;
+        first_name: string;
+        last_name: string;
+        role: string;
+        created_at: string;
+      }[];
+      if (users.length === 0) {
+        return res
+          .status(404)
+          .json({ success: false, message: "User not found" });
+      }
+
+      const user = users[0];
+
+      res.json({ success: true, data: user });
+    } catch (error) {
+      console.error("Get user report error:", error);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to get user report" });
     }
-
-    const [rows] = await pool.execute(
-      "SELECT id, email, first_name, last_name, role, created_at FROM users WHERE id = ?",
-      [userId]
-    );
-
-    const users = rows as {
-      id: number;
-      email: string;
-      first_name: string;
-      last_name: string;
-      role: string;
-      created_at: string;
-    }[];
-    if (users.length === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
-
-    const user = users[0];
-
-    res.json({ success: true, data: user });
-  } catch (error) {
-    console.error("Get user report error:", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to get user report" });
   }
-});
+);
 
 // Get skill gap analysis (Admin only)
 /**

@@ -1,6 +1,7 @@
 import express from "express";
 import { pool } from "../config/database";
 import { authenticate, authorize, CustomRequest } from "../middleware/auth";
+import { Request, Response } from "express";
 
 const router = express.Router();
 
@@ -39,16 +40,16 @@ const router = express.Router();
  */
 
 // Get all users (Admin only)
-router.get(
   "/",
   authenticate,
   authorize(["admin"]),
-  async (req: CustomRequest, res) => {
+  async (req: Request, res: Response) => {
+    const customReq = req as CustomRequest;
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 10;
-      const search = (req.query.search as string) || "";
-      const role = (req.query.role as string) || "";
+      const page = parseInt(customReq.query.page as string) || 1;
+      const limit = parseInt(customReq.query.limit as string) || 10;
+      const search = (customReq.query.search as string) || "";
+      const role = (customReq.query.role as string) || "";
 
       const offset = (page - 1) * limit;
 
@@ -116,7 +117,8 @@ router.get(
 );
 
 // Update own profile (Any authenticated user)
-router.put("/profile", authenticate, async (req: CustomRequest, res) => {
+router.put("/profile", authenticate, async (req: Request, res: Response) => {
+  const customReq = req as CustomRequest;
   try {
     /**
      * @swagger
@@ -153,8 +155,8 @@ router.put("/profile", authenticate, async (req: CustomRequest, res) => {
      *       404:
      *         description: User not found
      */
-    const userId = (req as any).user.userId;
-    const { firstName, lastName, email } = req.body;
+    const userId = customReq.user.userId;
+    const { firstName, lastName, email } = customReq.body;
 
     // Validate input
     if (!firstName || !lastName || !email) {
@@ -245,13 +247,13 @@ router.put("/profile", authenticate, async (req: CustomRequest, res) => {
  */
 
 // Get user by ID (Admin only)
-router.get(
   "/:id",
   authenticate,
   authorize(["admin"]),
-  async (req: CustomRequest, res) => {
+  async (req: Request, res: Response) => {
+    const customReq = req as CustomRequest;
     try {
-      const userId = parseInt(req.params.id);
+      const userId = parseInt(customReq.params.id);
 
       const [rows] = await pool.execute(
         "SELECT id, email, first_name, last_name, role, is_active, created_at FROM users WHERE id = ?",
@@ -331,14 +333,14 @@ router.get(
  */
 
 // Update user (Admin only)
-router.put(
   "/:id",
   authenticate,
   authorize(["admin"]),
-  async (req: CustomRequest, res) => {
+  async (req: Request, res: Response) => {
+    const customReq = req as CustomRequest;
     try {
-      const userId = parseInt(req.params.id);
-      const { firstName, lastName, role, isActive } = req.body;
+      const userId = parseInt(customReq.params.id);
+      const { firstName, lastName, role, isActive } = customReq.body;
 
       // Check if user exists
       const [existingUsers] = await pool.execute(
@@ -425,13 +427,13 @@ router.put(
  */
 
 // Delete user (Admin only)
-router.delete(
   "/:id",
   authenticate,
   authorize(["admin"]),
-  async (req: CustomRequest, res) => {
+  async (req: Request, res: Response) => {
+    const customReq = req as CustomRequest;
     try {
-      const userId = parseInt(req.params.id);
+      const userId = parseInt(customReq.params.id);
 
       // Check if user exists
       const [existingUsers] = await pool.execute(
@@ -447,7 +449,7 @@ router.delete(
       }
 
       // Don't allow deleting the last admin
-      if (req.user!.userId === userId) {
+      if (customReq.user!.userId === userId) {
         return res.status(400).json({
           success: false,
           message: "Cannot delete your own account",
@@ -471,11 +473,10 @@ router.delete(
 );
 
 // Get user statistics (Admin only)
-router.get(
   "/stats/overview",
   authenticate,
   authorize(["admin"]),
-  async (req: CustomRequest, res) => {
+  async (req: Request, res: Response) => {
     try {
       /**
        * @swagger
@@ -557,13 +558,13 @@ router.get(
  */
 
 // Toggle user status (Admin only)
-router.put(
   "/:id/toggle-status",
   authenticate,
   authorize(["admin"]),
-  async (req: CustomRequest, res) => {
+  async (req: Request, res: Response) => {
+    const customReq = req as CustomRequest;
     try {
-      const userId = parseInt(req.params.id);
+      const userId = parseInt(customReq.params.id);
 
       // Check if user exists
       const [existingUsers] = await pool.execute(

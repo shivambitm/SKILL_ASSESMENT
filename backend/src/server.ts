@@ -44,7 +44,7 @@
  * @version 1.0.0
  */
 
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -138,7 +138,7 @@ app.use(
 );
 
 // Handle OPTIONS requests - Must come BEFORE rate limiting
-app.options("*", (req, res) => {
+app.options("*", (req: Request, res: Response) => {
   res.status(204).end();
 });
 
@@ -176,7 +176,7 @@ app.use(express.urlencoded({ extended: true }));
 setupSwagger(app);
 
 // Health check route
-app.get("/health", (req, res) => {
+app.get("/health", (req: Request, res: Response) => {
   res.status(200).json({
     status: "success",
     message: "Server is running properly",
@@ -184,7 +184,7 @@ app.get("/health", (req, res) => {
   });
 });
 
-app.get("/api", (req, res) => {
+app.get("/api", (req: Request, res: Response) => {
   res.json({
     success: true,
     message: "API is working properly",
@@ -200,7 +200,7 @@ app.get("/api", (req, res) => {
 });
 
 // Health check with diagnostic information
-app.get("/health-diagnostic", (req, res) => {
+app.get("/health-diagnostic", (req: Request, res: Response) => {
   res.status(200).json({
     status: "success",
     message: "Server is running properly",
@@ -222,7 +222,7 @@ app.get("/health-diagnostic", (req, res) => {
 });
 
 // Root route
-app.get("/", (req, res) => {
+app.get("/", (req: Request, res: Response) => {
   res.status(200).json({
     message: "Skill Assessment Portal API",
     version: "1.0.0",
