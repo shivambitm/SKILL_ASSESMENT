@@ -4,7 +4,7 @@
   "description": "Backend for Skill Assessment Portal",
   "main": "dist/server.js",
   "scripts": {
-    "start": "node dist/server.js",
+    "start": "node dist/src/server.js",
     "dev": "nodemon src/server.ts",
     "build": "tsc",
     "test": "jest",
