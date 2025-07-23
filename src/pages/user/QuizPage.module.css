@@ -1,0 +1,21 @@
+.skillListContainer {
+  max-height: 400px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #3b82f6 #f1f5f9;
+}
+.skillListContainer::-webkit-scrollbar {
+  width: 8px;
+}
+.skillListContainer::-webkit-scrollbar-thumb {
+  background: #3b82f6;
+  border-radius: 4px;
+}
+.skillListContainer::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+.categoryTag {
+  background: #e0e7ff;
+  color: #3730a3;
+  margin-top: 2px;
+}

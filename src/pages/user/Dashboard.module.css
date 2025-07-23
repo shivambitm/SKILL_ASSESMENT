@@ -1,0 +1,30 @@
+.dashboardBg {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.textPrimary {
+  color: var(--text-primary) !important;
+}
+
+.textSecondary {
+  color: var(--text-secondary) !important;
+}
+
+.accent {
+  color: var(--accent-color) !important;
+}
+
+.statCard {
+  background: linear-gradient(to right, #3b82f6, #2563eb) !important;
+  color: #fff !important;
+}
+
+.statIconBg {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.quizCard {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+}
