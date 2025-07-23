@@ -10,7 +10,9 @@ router.get(
   "/quiz-usage",
   authenticate,
   authorize(["admin"]),
-  async (req, res) => {
+import { Request, Response } from "express";
+// ...existing code...
+  async (req: Request, res: Response) => {
     try {
       // Recent quiz attempts with user and skill info
       const [recent] = await pool.execute(`
@@ -154,7 +156,7 @@ router.get(
   "/skill-gaps",
   authenticate,
   authorize(["admin"]),
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
       const cacheKey = "skill_gaps_report";
       const cachedData = await cacheGet(cacheKey);
@@ -291,7 +293,7 @@ router.get(
   "/overview",
   authenticate,
   authorize(["admin"]),
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
       const cacheKey = "system_overview_report";
       const cachedData = await cacheGet(cacheKey);
@@ -429,7 +431,7 @@ router.get(
 );
 
 // Get user leaderboard
-router.get("/leaderboard", authenticate, async (req, res) => {
+router.get("/leaderboard", authenticate, async (req: Request, res: Response) => {
   try {
     const period = (req.query.period as string) || "all"; // all, week, month
     const skillId = (req.query.skillId as string) || "";

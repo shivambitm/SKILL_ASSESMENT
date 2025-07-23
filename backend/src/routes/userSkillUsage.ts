@@ -6,7 +6,9 @@ import { pool } from "../config/database";
 
 const router = Router();
 
-router.get("/user/:userId/skill-usage", async (req, res) => {
+import { Request, Response } from "express";
+// ...existing code...
+router.get("/user/:userId/skill-usage", async (req: Request, res: Response) => {
   const userId = req.params.userId;
   try {
     // Get all skills

@@ -46,7 +46,9 @@ const router = express.Router();
  */
 
 // Get all skills
-router.get("/", authenticate, async (req, res) => {
+import { Request, Response } from "express";
+// ...existing code...
+router.get("/", authenticate, async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -156,7 +158,7 @@ router.get("/", authenticate, async (req, res) => {
  *       404:
  *         description: Skill not found
  */
-router.get("/:id", authenticate, async (req, res) => {
+router.get("/:id", authenticate, async (req: Request, res: Response) => {
   try {
     const skillId = parseInt(req.params.id);
 
@@ -233,7 +235,7 @@ router.post(
   authenticate,
   authorize(["admin"]),
   validate(skillSchemas.create),
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
       const { name, description, category } = req.body;
 
@@ -329,7 +331,7 @@ router.put(
   authenticate,
   authorize(["admin"]),
   validate(skillSchemas.update),
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
       const skillId = parseInt(req.params.id);
       const { name, description, category, isActive } = req.body;
@@ -439,54 +441,59 @@ router.put(
  *       404:
  *         description: Skill not found
  */
-router.delete("/:id", authenticate, authorize(["admin"]), async (req, res) => {
-  try {
-    const skillId = parseInt(req.params.id);
+router.delete(
+  "/:id",
+  authenticate,
+  authorize(["admin"]),
+  async (req: Request, res: Response) => {
+    try {
+      const skillId = parseInt(req.params.id);
 
-    // Check if skill exists
-    const [existingSkills] = await pool.execute(
-      "SELECT id FROM skills WHERE id = ?",
-      [skillId]
-    );
+      // Check if skill exists
+      const [existingSkills] = await pool.execute(
+        "SELECT id FROM skills WHERE id = ?",
+        [skillId]
+      );
 
-    if ((existingSkills as any[]).length === 0) {
-      return res.status(404).json({
+      if ((existingSkills as any[]).length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Skill not found",
+        });
+      }
+
+      // Check if skill has associated questions
+      const [questionsCheck] = await pool.execute(
+        "SELECT COUNT(*) as count FROM questions WHERE skill_id = ?",
+        [skillId]
+      );
+
+      const questionCount = (questionsCheck as any[])[0].count;
+      if (questionCount > 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Cannot delete skill with associated questions",
+        });
+      }
+
+      await pool.execute("DELETE FROM skills WHERE id = ?", [skillId]);
+
+      // Clear cache
+      await cacheDel("skills:*");
+
+      res.json({
+        success: true,
+        message: "Skill deleted successfully",
+      });
+    } catch (error) {
+      console.error("Delete skill error:", error);
+      res.status(500).json({
         success: false,
-        message: "Skill not found",
+        message: "Failed to delete skill",
       });
     }
-
-    // Check if skill has associated questions
-    const [questionsCheck] = await pool.execute(
-      "SELECT COUNT(*) as count FROM questions WHERE skill_id = ?",
-      [skillId]
-    );
-
-    const questionCount = (questionsCheck as any[])[0].count;
-    if (questionCount > 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Cannot delete skill with associated questions",
-      });
-    }
-
-    await pool.execute("DELETE FROM skills WHERE id = ?", [skillId]);
-
-    // Clear cache
-    await cacheDel("skills:*");
-
-    res.json({
-      success: true,
-      message: "Skill deleted successfully",
-    });
-  } catch (error) {
-    console.error("Delete skill error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to delete skill",
-    });
   }
-});
+);
 
 /**
  * @swagger
@@ -502,28 +509,32 @@ router.delete("/:id", authenticate, authorize(["admin"]), async (req, res) => {
  *       401:
  *         description: Unauthorized
  */
-router.get("/categories/list", authenticate, async (req, res) => {
-  try {
-    const [rows] = await pool.execute(
-      'SELECT DISTINCT category FROM skills WHERE category IS NOT NULL AND category != "" ORDER BY category'
-    );
+router.get(
+  "/categories/list",
+  authenticate,
+  async (req: Request, res: Response) => {
+    try {
+      const [rows] = await pool.execute(
+        'SELECT DISTINCT category FROM skills WHERE category IS NOT NULL AND category != "" ORDER BY category'
+      );
 
-    const categories = (rows as any[]).map((row) => row.category);
+      const categories = (rows as any[]).map((row) => row.category);
 
-    res.json({
-      success: true,
-      data: {
-        categories,
-      },
-    });
-  } catch (error) {
-    console.error("Get categories error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to get categories",
-    });
+      res.json({
+        success: true,
+        data: {
+          categories,
+        },
+      });
+    } catch (error) {
+      console.error("Get categories error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get categories",
+      });
+    }
   }
-});
+);
 
 /**
  * @swagger
@@ -585,7 +596,7 @@ router.post(
   "/with-questions",
   authenticate,
   authorize(["admin"]),
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
       // Log the incoming request body for debugging
       console.log("[ADMIN] /with-questions request body:", req.body);

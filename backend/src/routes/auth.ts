@@ -32,7 +32,9 @@ console.log("Auth routes module loaded");
  */
 
 // Simple test route to verify routing works
-router.get("/test", (req, res) => {
+import { Request, Response } from "express";
+// ...existing code...
+router.get("/test", (req: Request, res: Response) => {
   res.json({ message: "Auth routes are working!" });
 });
 
@@ -70,7 +72,7 @@ router.get("/test", (req, res) => {
  */
 
 // Enhanced Register user (supports admin registration with passcode)
-router.post("/register", async (req, res) => {
+router.post("/register", async (req: Request, res: Response) => {
   try {
     const { email, password, firstName, lastName, role, adminPasscode } =
       req.body;

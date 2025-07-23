@@ -54,45 +54,51 @@ const router = express.Router();
  */
 
 // Get all questions (Admin only)
-router.get("/", authenticate, authorize(["admin"]), async (req, res) => {
-  try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const skillId = (req.query.skillId as string) || "";
-    const difficulty = (req.query.difficulty as string) || "";
-    const search = (req.query.search as string) || "";
+import { Request, Response } from "express";
+// ...existing code...
+router.get(
+  "/",
+  authenticate,
+  authorize(["admin"]),
+  async (req: Request, res: Response) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const skillId = (req.query.skillId as string) || "";
+      const difficulty = (req.query.difficulty as string) || "";
+      const search = (req.query.search as string) || "";
 
-    const offset = (page - 1) * limit;
+      const offset = (page - 1) * limit;
 
-    // Build query conditions
-    let whereClause = "WHERE 1=1";
-    const queryParams: any[] = [];
+      // Build query conditions
+      let whereClause = "WHERE 1=1";
+      const queryParams: any[] = [];
 
-    if (skillId) {
-      whereClause += " AND q.skill_id = ?";
-      queryParams.push(skillId);
-    }
+      if (skillId) {
+        whereClause += " AND q.skill_id = ?";
+        queryParams.push(skillId);
+      }
 
-    if (difficulty) {
-      whereClause += " AND q.difficulty = ?";
-      queryParams.push(difficulty);
-    }
+      if (difficulty) {
+        whereClause += " AND q.difficulty = ?";
+        queryParams.push(difficulty);
+      }
 
-    if (search) {
-      whereClause += " AND q.question_text LIKE ?";
-      queryParams.push(`%${search}%`);
-    }
+      if (search) {
+        whereClause += " AND q.question_text LIKE ?";
+        queryParams.push(`%${search}%`);
+      }
 
-    // Get total count
-    const [countResult] = await pool.execute(
-      `SELECT COUNT(*) as total FROM questions q ${whereClause}`,
-      queryParams
-    );
-    const total = (countResult as any[])[0].total;
+      // Get total count
+      const [countResult] = await pool.execute(
+        `SELECT COUNT(*) as total FROM questions q ${whereClause}`,
+        queryParams
+      );
+      const total = (countResult as any[])[0].total;
 
-    // Get questions with skill info
-    const [rows] = await pool.execute(
-      `SELECT q.id, q.skill_id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, 
+      // Get questions with skill info
+      const [rows] = await pool.execute(
+        `SELECT q.id, q.skill_id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, 
               q.correct_answer, q.difficulty, q.points, q.is_active, q.created_at, 
               s.name as skill_name
        FROM questions q
@@ -100,47 +106,48 @@ router.get("/", authenticate, authorize(["admin"]), async (req, res) => {
        ${whereClause}
        ORDER BY q.created_at DESC 
        LIMIT ? OFFSET ?`,
-      [...queryParams, limit, offset]
-    );
+        [...queryParams, limit, offset]
+      );
 
-    const questions = (rows as any[]).map((question) => ({
-      id: question.id,
-      skillId: question.skill_id,
-      skillName: question.skill_name,
-      questionText: question.question_text,
-      options: {
-        A: question.option_a,
-        B: question.option_b,
-        C: question.option_c,
-        D: question.option_d,
-      },
-      correctAnswer: question.correct_answer,
-      difficulty: question.difficulty,
-      points: question.points,
-      isActive: question.is_active,
-      createdAt: question.created_at,
-    }));
-
-    res.json({
-      success: true,
-      data: {
-        questions,
-        pagination: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit),
+      const questions = (rows as any[]).map((question) => ({
+        id: question.id,
+        skillId: question.skill_id,
+        skillName: question.skill_name,
+        questionText: question.question_text,
+        options: {
+          A: question.option_a,
+          B: question.option_b,
+          C: question.option_c,
+          D: question.option_d,
         },
-      },
-    });
-  } catch (error) {
-    console.error("Get questions error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to get questions",
-    });
+        correctAnswer: question.correct_answer,
+        difficulty: question.difficulty,
+        points: question.points,
+        isActive: question.is_active,
+        createdAt: question.created_at,
+      }));
+
+      res.json({
+        success: true,
+        data: {
+          questions,
+          pagination: {
+            page,
+            limit,
+            total,
+            pages: Math.ceil(total / limit),
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Get questions error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get questions",
+      });
+    }
   }
-});
+);
 /**
  * @swagger
  * /api/questions/quiz/{skillId}:
@@ -169,61 +176,65 @@ router.get("/", authenticate, authorize(["admin"]), async (req, res) => {
  */
 
 // Get questions for quiz (User)
-router.get("/quiz/:skillId", authenticate, async (req, res) => {
-  try {
-    const skillId = parseInt(req.params.skillId);
-    const limit = parseInt(req.query.limit as string) || 10;
+router.get(
+  "/quiz/:skillId",
+  authenticate,
+  async (req: Request, res: Response) => {
+    try {
+      const skillId = parseInt(req.params.skillId);
+      const limit = parseInt(req.query.limit as string) || 10;
 
-    // Check if skill exists
-    const [skillCheck] = await pool.execute(
-      "SELECT id FROM skills WHERE id = ? AND is_active = true",
-      [skillId]
-    );
+      // Check if skill exists
+      const [skillCheck] = await pool.execute(
+        "SELECT id FROM skills WHERE id = ? AND is_active = true",
+        [skillId]
+      );
 
-    if ((skillCheck as any[]).length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Skill not found or inactive",
-      });
-    }
+      if ((skillCheck as any[]).length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Skill not found or inactive",
+        });
+      }
 
-    // Get random questions for the skill
-    const [rows] = await pool.execute(
-      `SELECT id, question_text, option_a, option_b, option_c, option_d, difficulty, points
+      // Get random questions for the skill
+      const [rows] = await pool.execute(
+        `SELECT id, question_text, option_a, option_b, option_c, option_d, difficulty, points
        FROM questions 
        WHERE skill_id = ? AND is_active = true 
        ORDER BY RANDOM() 
        LIMIT ?`,
-      [skillId, limit]
-    );
+        [skillId, limit]
+      );
 
-    const questions = (rows as any[]).map((question) => ({
-      id: question.id,
-      questionText: question.question_text,
-      options: {
-        A: question.option_a,
-        B: question.option_b,
-        C: question.option_c,
-        D: question.option_d,
-      },
-      difficulty: question.difficulty,
-      points: question.points,
-    }));
+      const questions = (rows as any[]).map((question) => ({
+        id: question.id,
+        questionText: question.question_text,
+        options: {
+          A: question.option_a,
+          B: question.option_b,
+          C: question.option_c,
+          D: question.option_d,
+        },
+        difficulty: question.difficulty,
+        points: question.points,
+      }));
 
-    res.json({
-      success: true,
-      data: {
-        questions,
-      },
-    });
-  } catch (error) {
-    console.error("Get quiz questions error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to get quiz questions",
-    });
+      res.json({
+        success: true,
+        data: {
+          questions,
+        },
+      });
+    } catch (error) {
+      console.error("Get quiz questions error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get quiz questions",
+      });
+    }
   }
-});
+);
 /**
  * @swagger
  * /api/questions/{id}:
@@ -249,60 +260,65 @@ router.get("/quiz/:skillId", authenticate, async (req, res) => {
  */
 
 // Get question by ID (Admin only)
-router.get("/:id", authenticate, authorize(["admin"]), async (req, res) => {
-  try {
-    const questionId = parseInt(req.params.id);
+router.get(
+  "/:id",
+  authenticate,
+  authorize(["admin"]),
+  async (req: Request, res: Response) => {
+    try {
+      const questionId = parseInt(req.params.id);
 
-    const [rows] = await pool.execute(
-      `SELECT q.id, q.skill_id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, 
+      const [rows] = await pool.execute(
+        `SELECT q.id, q.skill_id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, 
               q.correct_answer, q.difficulty, q.points, q.is_active, q.created_at, 
               s.name as skill_name
        FROM questions q
        LEFT JOIN skills s ON q.skill_id = s.id
        WHERE q.id = ?`,
-      [questionId]
-    );
+        [questionId]
+      );
 
-    const questions = rows as any[];
-    if (questions.length === 0) {
-      return res.status(404).json({
+      const questions = rows as any[];
+      if (questions.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Question not found",
+        });
+      }
+
+      const question = questions[0];
+
+      res.json({
+        success: true,
+        data: {
+          question: {
+            id: question.id,
+            skillId: question.skill_id,
+            skillName: question.skill_name,
+            questionText: question.question_text,
+            options: {
+              A: question.option_a,
+              B: question.option_b,
+              C: question.option_c,
+              D: question.option_d,
+            },
+            correctAnswer: question.correct_answer,
+            difficulty: question.difficulty,
+            points: question.points,
+            isActive: question.is_active,
+            createdAt: question.created_at,
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Get question error:", error);
+      res.status(500).json({
         success: false,
-        message: "Question not found",
+        message: "Failed to get question",
       });
     }
-
-    const question = questions[0];
-
-    res.json({
-      success: true,
-      data: {
-        question: {
-          id: question.id,
-          skillId: question.skill_id,
-          skillName: question.skill_name,
-          questionText: question.question_text,
-          options: {
-            A: question.option_a,
-            B: question.option_b,
-            C: question.option_c,
-            D: question.option_d,
-          },
-          correctAnswer: question.correct_answer,
-          difficulty: question.difficulty,
-          points: question.points,
-          isActive: question.is_active,
-          createdAt: question.created_at,
-        },
-      },
-    });
-  } catch (error) {
-    console.error("Get question error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to get question",
-    });
   }
-});
+);
 /**
  * @swagger
  * /api/questions/:
@@ -351,7 +367,7 @@ router.post(
   authenticate,
   authorize(["admin"]),
   validate(questionSchemas.create),
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
       const {
         skillId,
@@ -487,7 +503,7 @@ router.put(
   authenticate,
   authorize(["admin"]),
   validate(questionSchemas.update),
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
       const questionId = parseInt(req.params.id);
       const {
@@ -631,39 +647,44 @@ router.put(
  */
 
 // Delete question (Admin only)
-router.delete("/:id", authenticate, authorize(["admin"]), async (req, res) => {
-  try {
-    const questionId = parseInt(req.params.id);
+router.delete(
+  "/:id",
+  authenticate,
+  authorize(["admin"]),
+  async (req: Request, res: Response) => {
+    try {
+      const questionId = parseInt(req.params.id);
 
-    // Check if question exists
-    const [existingQuestions] = await pool.execute(
-      "SELECT id FROM questions WHERE id = ?",
-      [questionId]
-    );
+      // Check if question exists
+      const [existingQuestions] = await pool.execute(
+        "SELECT id FROM questions WHERE id = ?",
+        [questionId]
+      );
 
-    if ((existingQuestions as any[]).length === 0) {
-      return res.status(404).json({
+      if ((existingQuestions as any[]).length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Question not found",
+        });
+      }
+
+      await pool.execute("DELETE FROM questions WHERE id = ?", [questionId]);
+
+      // Clear cache
+      await cacheDel("questions:*");
+
+      res.json({
+        success: true,
+        message: "Question deleted successfully",
+      });
+    } catch (error) {
+      console.error("Delete question error:", error);
+      res.status(500).json({
         success: false,
-        message: "Question not found",
+        message: "Failed to delete question",
       });
     }
-
-    await pool.execute("DELETE FROM questions WHERE id = ?", [questionId]);
-
-    // Clear cache
-    await cacheDel("questions:*");
-
-    res.json({
-      success: true,
-      message: "Question deleted successfully",
-    });
-  } catch (error) {
-    console.error("Delete question error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to delete question",
-    });
   }
-});
+);
 
 export default router;
