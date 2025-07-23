@@ -1,4 +1,5 @@
 import express from "express";
+import { Request, Response } from "express";
 import { pool } from "../config/database";
 import { authenticate, authorize, CustomRequest } from "../middleware/auth";
 import { cacheGet, cacheSet } from "../config/redis";
@@ -10,8 +11,6 @@ router.get(
   "/quiz-usage",
   authenticate,
   authorize(["admin"]),
-import { Request, Response } from "express";
-// ...existing code...
   async (req: Request, res: Response) => {
     try {
       // Recent quiz attempts with user and skill info
@@ -431,34 +430,37 @@ router.get(
 );
 
 // Get user leaderboard
-router.get("/leaderboard", authenticate, async (req: Request, res: Response) => {
-  try {
-    const period = (req.query.period as string) || "all"; // all, week, month
-    const skillId = (req.query.skillId as string) || "";
-    const limit = parseInt(req.query.limit as string) || 10;
+router.get(
+  "/leaderboard",
+  authenticate,
+  async (req: Request, res: Response) => {
+    try {
+      const period = (req.query.period as string) || "all"; // all, week, month
+      const skillId = (req.query.skillId as string) || "";
+      const limit = parseInt(req.query.limit as string) || 10;
 
-    // Build date filter (SQLite compatible)
-    let dateFilter = "";
-    if (period === "week") {
-      dateFilter = "AND qa.completed_at >= datetime('now', '-7 days')";
-    } else if (period === "month") {
-      dateFilter = "AND qa.completed_at >= datetime('now', '-1 month')";
-    }
+      // Build date filter (SQLite compatible)
+      let dateFilter = "";
+      if (period === "week") {
+        dateFilter = "AND qa.completed_at >= datetime('now', '-7 days')";
+      } else if (period === "month") {
+        dateFilter = "AND qa.completed_at >= datetime('now', '-1 month')";
+      }
 
-    // Build skill filter
-    let skillFilter = "";
-    if (skillId) {
-      skillFilter = "AND qa.skill_id = ?";
-    }
+      // Build skill filter
+      let skillFilter = "";
+      if (skillId) {
+        skillFilter = "AND qa.skill_id = ?";
+      }
 
-    const queryParams: any[] = [];
-    if (skillId) {
-      queryParams.push(skillId);
-    }
-    queryParams.push(limit);
+      const queryParams: any[] = [];
+      if (skillId) {
+        queryParams.push(skillId);
+      }
+      queryParams.push(limit);
 
-    const [leaderboard] = await pool.execute(
-      `SELECT 
+      const [leaderboard] = await pool.execute(
+        `SELECT 
         u.id,
         u.first_name,
         u.last_name,
@@ -474,37 +476,39 @@ router.get("/leaderboard", authenticate, async (req: Request, res: Response) => 
        HAVING quiz_count > 0
        ORDER BY avg_score DESC, quiz_count DESC
        LIMIT ?`,
-      queryParams
-    );
+        queryParams
+      );
 
-    const leaderboardData = (leaderboard as any[]).map((user, index) => ({
-      rank: index + 1,
-      id: user.id,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      quizCount: user.quiz_count,
-      avgScore: Math.round((user.avg_score || 0) * 100) / 100,
-      bestScore: Math.round((user.best_score || 0) * 100) / 100,
-      accuracyRate: user.total_questions
-        ? Math.round((user.total_correct / user.total_questions) * 10000) / 100
-        : 0,
-    }));
+      const leaderboardData = (leaderboard as any[]).map((user, index) => ({
+        rank: index + 1,
+        id: user.id,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        quizCount: user.quiz_count,
+        avgScore: Math.round((user.avg_score || 0) * 100) / 100,
+        bestScore: Math.round((user.best_score || 0) * 100) / 100,
+        accuracyRate: user.total_questions
+          ? Math.round((user.total_correct / user.total_questions) * 10000) /
+            100
+          : 0,
+      }));
 
-    res.json({
-      success: true,
-      data: {
-        leaderboard: leaderboardData,
-        period,
-        skillId: skillId || null,
-      },
-    });
-  } catch (error) {
-    console.error("Get leaderboard error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to get leaderboard",
-    });
+      res.json({
+        success: true,
+        data: {
+          leaderboard: leaderboardData,
+          period,
+          skillId: skillId || null,
+        },
+      });
+    } catch (error) {
+      console.error("Get leaderboard error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get leaderboard",
+      });
+    }
   }
-});
+);
 
 export default router;
