@@ -7,6 +7,13 @@ dotenv.config();
 let client: ReturnType<typeof createClient> | undefined;
 
 export const connectRedis = async () => {
+  // Skip Redis connection entirely if REDIS_ENABLED is not 'true'
+  if (process.env.REDIS_ENABLED !== "true") {
+    console.log(
+      "Redis is disabled (REDIS_ENABLED != 'true'), skipping Redis connection."
+    );
+    return;
+  }
   console.log("Connecting to Redis...");
   try {
     // Skip Redis connection in development if REDIS_OPTIONAL is set
