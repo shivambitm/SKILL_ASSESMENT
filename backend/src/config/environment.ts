@@ -38,6 +38,7 @@ export const CORS_ORIGINS = (() => {
       /^http:\/\/localhost:\d+$/, // Allow localhost:PORT
       /^http:\/\/127\.0\.0\.1:\d+$/, // Allow 127.0.0.1:PORT
       "http://localhost:5173",
+      "http://localhost:4173",
     ];
   }
 
