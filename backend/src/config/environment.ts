@@ -31,24 +31,28 @@ export const RATE_LIMIT = {
     : Number.MAX_SAFE_INTEGER,
 };
 
-// 🔧 Fixed CORS configuration
+// 🔧 CORS configuration from .env (supports regex as /pattern/flags)
 export const CORS_ORIGINS = (() => {
-  if (isDevelopment) {
-    return [
-      /^http:\/\/localhost:\d+$/, // Allow localhost:PORT
-      /^http:\/\/127\.0\.0\.1:\d+$/, // Allow 127.0.0.1:PORT
-      "http://localhost:5173",
-      "http://localhost:4173",
-      "https://curious-maamoul-ba22b8.netlify.app"
-    ];
-  }
-
-  // In production, parse comma-separated origins from .env
   const rawOrigins = process.env.CORS_ORIGIN || "";
   return rawOrigins
     .split(",")
     .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0);
+    .filter((origin) => origin.length > 0)
+    .map((origin) => {
+      // If origin is a regex string like "/^http:\/\/localhost:\d+$/", convert to RegExp
+      if (origin.startsWith("/") && origin.lastIndexOf("/") > 0) {
+        const lastSlash = origin.lastIndexOf("/");
+        const pattern = origin.slice(1, lastSlash);
+        const flags = origin.slice(lastSlash + 1);
+        try {
+          return new RegExp(pattern, flags);
+        } catch {
+          console.warn(`Invalid RegExp in CORS_ORIGIN: ${origin}`);
+          return origin;
+        }
+      }
+      return origin;
+    });
 })();
 
 // Logging for debug
