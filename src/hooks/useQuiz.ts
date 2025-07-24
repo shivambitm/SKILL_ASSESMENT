@@ -61,7 +61,7 @@ export const useQuiz = (skillId: number) => {
       console.log(
         "🌐 API URL will be:",
         `${
-          import.meta.env.VITE_API_URL || "http://localhost:5002"
+          import.meta.env.VITE_API_URL || "http://localhost:5000"
         }/api/questions/quiz/${skillId}`
       );
 
