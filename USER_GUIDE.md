@@ -5,8 +5,8 @@
 ### Application Access
 
 - **Frontend:** http://localhost:5173/
-- **Backend API:** http://localhost:5002/api/
-- **Health Check:** http://localhost:5002/health
+- **Backend API:** http://localhost:5000/api/
+- **Health Check:** http://localhost:5000/health
 
 ### Default Login Credentials
 

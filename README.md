@@ -156,7 +156,7 @@ Full-Stack Development Environment
 ════════════════════════════════════════════════════════════════════════════════
 
 💻 Frontend Dev Server: http://localhost:5173
-🗄 Backend API Server: http://localhost:5002
+🗄 Backend API Server: http://localhost:5000
 ⚡ Hot Reload: Enabled
 
 Press Ctrl+C to stop all servers
@@ -179,7 +179,7 @@ Press Ctrl+C to stop all servers
 [14:24:13] [BACKEND] Database migrations completed successfully
 [14:24:13] [BACKEND] Connecting to Redis...
 [14:24:13] [BACKEND] Redis connection skipped in development mode
-[14:24:13] [BACKEND] Server running on port 5002
+[14:24:13] [BACKEND] Server running on port 5000
 [14:24:13] [BACKEND] Rate limiting: Relaxed (Development)
 [14:24:22] [FRONTEND] Browserslist: caniuse-lite is outdated. Please run:
 [14:24:22] [FRONTEND] npx update-browserslist-db@latest

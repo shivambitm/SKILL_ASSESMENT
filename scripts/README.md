@@ -136,13 +136,13 @@ Full environment setup: install dependencies, build, and seed database.
 ════════════════════════════════════════════════════════════════════════════════
 
 💻 Frontend Dev Server: http://localhost:5173
-🗄 Backend API Server: http://localhost:5002
+🗄 Backend API Server: http://localhost:5000
 ⚡ Hot Reload: Enabled
 
 Press Ctrl+C to stop all servers
 ────────────────────────────────────────────────────────────────────────────────
 
-[14:30:26] [BACKEND] Server running on port 5002
+[14:30:26] [BACKEND] Server running on port 5000
 [14:30:27] [FRONTEND] Local: http://localhost:5173/
 [14:30:27] [FRONTEND] ready in 1245ms
 ```
