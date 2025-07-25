@@ -23,6 +23,7 @@ import QuizDetailPage from "./pages/user/QuizDetailPage";
 import Leaderboard from "./pages/user/Leaderboard";
 import Profile from "./pages/user/Profile";
 import PublicProfile from "./pages/user/PublicProfile";
+import NotFound from "./pages/NotFound";
 
 // Create a client
 const queryClient = new QueryClient({
@@ -120,7 +121,13 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                
+                {/* Catch-all for any unmatched routes inside protected area */}
+                <Route path="*" element={<NotFound />} />
               </Route>
+              
+              {/* Final catch-all for completely unmatched routes */}
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </Router>
         </AuthProvider>
