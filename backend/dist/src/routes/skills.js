@@ -528,7 +528,7 @@ router.post("/with-questions", auth_1.authenticate, (0, auth_1.authorize)(["admi
         // Insert questions
         for (const q of questions) {
             console.log("[ADMIN] Inserting question:", q);
-            await database_1.pool.execute(`INSERT INTO questions (skill_id, question_text, option_a, option_b, option_c, option_d, correct_answer, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)`, [
+            await database_1.pool.execute(`INSERT INTO questions (skill_id, question_text, option_a, option_b, option_c, option_d, correct_answer, difficulty, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`, [
                 skillId,
                 q.questionText,
                 q.optionA,
@@ -536,6 +536,7 @@ router.post("/with-questions", auth_1.authenticate, (0, auth_1.authorize)(["admi
                 q.optionC,
                 q.optionD,
                 q.correctAnswer,
+                q.difficulty || 'easy',
             ]);
         }
         // Optionally: Generate a seed script file for this skill+questions

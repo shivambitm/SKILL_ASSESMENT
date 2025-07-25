@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import "./dashboard-custom.css";
 import Button from "../../components/common/Button";
-import Card from "../../components/common/Card";
 import ErrorMessage from "../../components/common/ErrorMessage";
+import api from "../../services/api";
 
 interface QuestionForm {
   questionText: string;
@@ -61,17 +61,14 @@ const SkillWithQuestionsForm: React.FC = () => {
     setError("");
     setSuccess("");
     try {
-      const res = await fetch("/api/skills/with-questions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({ ...skill, questions }),
+      const res = await api.post("/skills/with-questions", {
+        ...skill,
+        questions,
       });
-      const data = await res.json();
+      const data = res.data;
       if (data.success) {
-        setSuccess("Skill and questions added successfully!");
+        setSuccess("Skill with questions added successfully!");
+        alert(`Skill ${skill.name} with questions added successfully!`);
         setSkill({ name: "", description: "", category: "" });
         setQuestions([{ ...emptyQuestion }]);
       } else {
@@ -135,7 +132,7 @@ const SkillWithQuestionsForm: React.FC = () => {
                   {questions.length > 1 && (
                     <button
                       type="button"
-                      className="text-red-500 hover:underline text-xs"
+                      className="text-red-500 hover:underline text-s"
                       onClick={() => removeQuestion(idx)}
                     >
                       Remove
@@ -189,6 +186,7 @@ const SkillWithQuestionsForm: React.FC = () => {
                     name="correctAnswer"
                     value={q.correctAnswer}
                     onChange={(e) => handleQuestionChange(idx, e)}
+                    aria-label="Correct answer"
                     className="border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1 bg-white/80 dark:bg-gray-800/80 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
                   >
                     <option value="A">A</option>
@@ -200,6 +198,7 @@ const SkillWithQuestionsForm: React.FC = () => {
                     name="difficulty"
                     value={q.difficulty}
                     onChange={(e) => handleQuestionChange(idx, e)}
+                    aria-label="Question difficulty level"
                     className="border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1 bg-white/80 dark:bg-gray-800/80 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
                   >
                     <option value="easy">Easy</option>
@@ -212,7 +211,7 @@ const SkillWithQuestionsForm: React.FC = () => {
           </div>
           <button
             type="button"
-            className="mt-2 px-3 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 text-xs"
+            className="mt-2 px-3 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 text-m"
             onClick={addQuestion}
           >
             + Add Another Question

@@ -470,8 +470,8 @@ const Profile: React.FC = () => {
                   className="text-2xl font-bold"
                   style={{ color: "var(--accent-color)" }}
                 >
-                  {userReport?.statistics?.avgScore != null
-                    ? `${userReport.statistics.avgScore}%`
+                  {userReport?.statistics?.averageScore != null
+                    ? `${userReport.statistics.averageScore}%`
                     : "0%"}
                 </div>
                 <div
@@ -489,7 +489,9 @@ const Profile: React.FC = () => {
                   className="text-2xl font-bold"
                   style={{ color: "var(--accent-color)" }}
                 >
-                  {userReport?.skillPerformance?.length ?? 0}
+                  {userReport?.recentQuizzes ? 
+                    [...new Set(userReport.recentQuizzes.map((q: any) => q.skillName))].length 
+                    : 0}
                 </div>
                 <div
                   className="text-sm"

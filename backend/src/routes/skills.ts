@@ -626,7 +626,7 @@ router.post(
       for (const q of questions) {
         console.log("[ADMIN] Inserting question:", q);
         await pool.execute(
-          `INSERT INTO questions (skill_id, question_text, option_a, option_b, option_c, option_d, correct_answer, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+          `INSERT INTO questions (skill_id, question_text, option_a, option_b, option_c, option_d, correct_answer, difficulty, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
           [
             skillId,
             q.questionText,
@@ -635,6 +635,7 @@ router.post(
             q.optionC,
             q.optionD,
             q.correctAnswer,
+            q.difficulty || 'easy',
           ]
         );
       }
