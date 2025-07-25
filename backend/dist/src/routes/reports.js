@@ -101,7 +101,59 @@ router.get("/user/:userId", auth_1.authenticate, async (req, res) => {
                 .json({ success: false, message: "User not found" });
         }
         const user = users[0];
-        res.json({ success: true, data: user });
+        // Get quiz statistics
+        const [quizStats] = await database_1.pool.execute(`SELECT 
+        COUNT(*) as totalQuizzes,
+        AVG(score_percentage) as averageScore,
+        MAX(score_percentage) as bestScore,
+        AVG(CASE WHEN score_percentage >= 70 THEN 1 ELSE 0 END) * 100 as accuracyRate
+       FROM quiz_attempts 
+       WHERE user_id = ? AND completed_at IS NOT NULL`, [userId]);
+        // Get recent quizzes
+        const [recentQuizzes] = await database_1.pool.execute(`SELECT 
+        qa.id,
+        s.name as skillName,
+        qa.correct_answers as correctAnswers,
+        qa.total_questions as totalQuestions,
+        qa.score_percentage as score,
+        qa.completed_at as completedAt
+       FROM quiz_attempts qa
+       JOIN skills s ON qa.skill_id = s.id
+       WHERE qa.user_id = ? AND qa.completed_at IS NOT NULL
+       ORDER BY qa.completed_at DESC
+       LIMIT 10`, [userId]);
+        // Get performance trend (last 30 days)
+        const [performanceTrend] = await database_1.pool.execute(`SELECT 
+        DATE(completed_at) as date,
+        AVG(score_percentage) as avgScore
+       FROM quiz_attempts 
+       WHERE user_id = ? AND completed_at IS NOT NULL 
+         AND completed_at >= datetime('now', '-30 days')
+       GROUP BY DATE(completed_at)
+       ORDER BY date ASC`, [userId]);
+        const stats = quizStats[0];
+        const reportData = {
+            user,
+            statistics: {
+                totalQuizzes: stats.totalQuizzes || 0,
+                averageScore: Math.round((stats.averageScore || 0) * 100) / 100,
+                bestScore: Math.round((stats.bestScore || 0) * 100) / 100,
+                accuracyRate: Math.round((stats.accuracyRate || 0) * 100) / 100,
+            },
+            recentQuizzes: recentQuizzes.map(quiz => ({
+                id: quiz.id.toString(),
+                skillName: quiz.skillName,
+                correctAnswers: quiz.correctAnswers,
+                totalQuestions: quiz.totalQuestions,
+                score: Math.round((quiz.score || 0) * 100) / 100,
+                completedAt: quiz.completedAt,
+            })),
+            performanceTrend: performanceTrend.map(trend => ({
+                date: trend.date,
+                avgScore: Math.round((trend.avgScore || 0) * 100) / 100,
+            })),
+        };
+        res.json({ success: true, data: reportData });
     }
     catch (error) {
         console.error("Get user report error:", error);

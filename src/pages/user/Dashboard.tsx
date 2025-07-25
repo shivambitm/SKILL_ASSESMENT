@@ -146,18 +146,7 @@ const Dashboard: React.FC = () => {
 
   const recentQuizzes = userReport?.recentQuizzes || [];
   const performanceTrend = userReport?.performanceTrend || [];
-  // Calculate average score from recentQuizzes (like profile)
-  const allScores = recentQuizzes
-    .map((q) => q.score)
-    .filter((s) => typeof s === "number");
-  const averageScore =
-    allScores.length > 0
-      ? allScores.reduce((a, b) => a + b, 0) / allScores.length
-      : 0;
-  const stats = {
-    ...userReport?.statistics,
-    averageScore: Number(averageScore.toFixed(2)),
-  };
+  const stats = userReport?.statistics || {};
 
   return (
     <div
@@ -315,8 +304,8 @@ const Dashboard: React.FC = () => {
                   </thead>
                   <tbody>
                     {skillUsage.length > 0 ? (
-                      skillUsage.map((row) => (
-                        <tr key={row.skillName}>
+                      skillUsage.map((row, index) => (
+                        <tr key={`${row.skillName}-${index}`}>
                           <td className="px-2 py-1">{row.skillName}</td>
                           <td className="px-2 py-1 text-right">{row.count}</td>
                           <td className="px-2 py-1 text-right">

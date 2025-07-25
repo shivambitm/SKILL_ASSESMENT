@@ -27,6 +27,10 @@ interface Skill {
 
 const AdminQuestions: React.FC = () => {
   const [skills, setSkills] = useState<Skill[]>([]);
+  const [filteredSkills, setFilteredSkills] = useState<Skill[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [questionSearchTerm, setQuestionSearchTerm] = useState("");
+  const [filteredQuestions, setFilteredQuestions] = useState<Question[]>([]);
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
   const [loading, setLoading] = useState(true);
   const [editSkill, setEditSkill] = useState<Skill | null>(null);
@@ -51,23 +55,24 @@ const AdminQuestions: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState("");
   const [qError, setQError] = useState("");
 
-  // For seed-only import, use merged endpoint and show importable questions
-  // Removed unused seedQuestions state and related code for lint clean-up.
   useEffect(() => {
-    // Fetch DB skills/questions for CRUD
     fetchSkills();
-    // Removed fetchSeed and related code for lint clean-up.
   }, []);
 
-  // Fetch skills/questions from DB only (for full CRUD)
   const fetchSkills = async () => {
     setLoading(true);
     setError("");
     try {
       const res = await skillsApi.getAllSkillsWithQuestions();
       setSkills(res.data.data);
-      if (res.data.data.length > 0) setSelectedSkill(res.data.data[0]);
-      else setSelectedSkill(null);
+      setFilteredSkills(res.data.data);
+      if (res.data.data.length > 0) {
+        setSelectedSkill(res.data.data[0]);
+        setFilteredQuestions(res.data.data[0].questions || []);
+      } else {
+        setSelectedSkill(null);
+        setFilteredQuestions([]);
+      }
     } catch {
       setError("Failed to load skills");
     } finally {
@@ -75,12 +80,50 @@ const AdminQuestions: React.FC = () => {
     }
   };
 
-  // Skill edit
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+    if (!term.trim()) {
+      setFilteredSkills(skills);
+      return;
+    }
+    
+    const filtered = skills.filter(skill => 
+      skill.name?.toLowerCase().includes(term.toLowerCase()) ||
+      skill.description?.toLowerCase().includes(term.toLowerCase()) ||
+      (skill as any).category?.toLowerCase()?.includes(term.toLowerCase())
+    );
+    setFilteredSkills(filtered);
+  };
+
+  const handleQuestionSearch = (term: string) => {
+    setQuestionSearchTerm(term);
+    if (!selectedSkill?.questions) {
+      setFilteredQuestions([]);
+      return;
+    }
+    
+    if (!term.trim()) {
+      setFilteredQuestions(selectedSkill.questions);
+      return;
+    }
+    
+    const filtered = selectedSkill.questions.filter(question => 
+      question.question_text?.toLowerCase().includes(term.toLowerCase()) ||
+      question.option_a?.toLowerCase().includes(term.toLowerCase()) ||
+      question.option_b?.toLowerCase().includes(term.toLowerCase()) ||
+      question.option_c?.toLowerCase().includes(term.toLowerCase()) ||
+      question.option_d?.toLowerCase().includes(term.toLowerCase()) ||
+      question.difficulty?.toLowerCase().includes(term.toLowerCase())
+    );
+    setFilteredQuestions(filtered);
+  };
+
   const handleEditClick = (skill: Skill) => {
     setEditSkill(skill);
     setEditForm({ name: skill.name, description: skill.description });
     setShowSkillModal(true);
   };
+  
   const handleEditSave = async () => {
     if (!editSkill) return;
     await skillsApi.updateSkill(editSkill.id, editForm);
@@ -88,6 +131,7 @@ const AdminQuestions: React.FC = () => {
     setEditSkill(null);
     fetchSkills();
   };
+  
   const handleDeleteSkill = async (id: number) => {
     if (!window.confirm("Delete this skill and all its questions?")) return;
     await skillsApi.deleteSkill(id);
@@ -95,7 +139,6 @@ const AdminQuestions: React.FC = () => {
     fetchSkills();
   };
 
-  // Question CRUD
   const handleEditQClick = (q: Question) => {
     setEditQ(q);
     setQForm({
@@ -111,6 +154,7 @@ const AdminQuestions: React.FC = () => {
     setIsAddQ(false);
     setShowQModal(true);
   };
+  
   const handleAddQClick = () => {
     setEditQ(null);
     setQForm({
@@ -126,6 +170,7 @@ const AdminQuestions: React.FC = () => {
     setIsAddQ(true);
     setShowQModal(true);
   };
+  
   const handleQSave = async () => {
     setQError("");
     if (!selectedSkill) return;
@@ -167,6 +212,7 @@ const AdminQuestions: React.FC = () => {
       setQError("Failed to save question.");
     }
   };
+  
   const handleDeleteQuestion = async (id?: number) => {
     if (!id) return;
     if (!window.confirm("Delete this question?")) return;
@@ -176,14 +222,29 @@ const AdminQuestions: React.FC = () => {
 
   return (
     <div
-      className="flex flex-col md:flex-row gap-8 py-8 px-4 max-w-7xl mx-auto"
-      style={{ height: "80vh" }}
+      className="flex flex-col md:flex-row gap-8 py-8 px-4 max-w-full mx-auto"
+      style={{ height: "90vh" }}
     >
       <div
-        className="md:w-1/3 w-full overflow-y-auto pr-2 custom-scrollbar"
-        style={{ maxHeight: "100%" }}
+        className="md:w-1/3 w-full overflow-y-auto pr-2 custom-scrollbar md:max-h-full max-h-[50vh]"
       >
-        <h2 className="text-xl font-bold mb-4">Skills</h2>
+        <div className="flex flex-col gap-4 mb-4">
+          <h2 className="text-xl font-bold">Skills</h2>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search skills by name, description, or category..."
+              value={searchTerm}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="w-full px-4 py-3 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl text-gray-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 transition-all duration-300 shadow-lg"
+            />
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
         {loading ? (
           <div className="flex justify-center">
             <span>Loading...</span>
@@ -192,7 +253,7 @@ const AdminQuestions: React.FC = () => {
           <div className="text-red-500">{error}</div>
         ) : (
           <div className="space-y-3">
-            {skills.map((skill) => (
+            {filteredSkills.map((skill) => (
               <Card
                 key={skill.id}
                 className={`p-4 cursor-pointer border-2 transition-all duration-200 ${
@@ -200,18 +261,22 @@ const AdminQuestions: React.FC = () => {
                     ? "border-blue-500 bg-blue-50"
                     : "border-transparent hover:border-blue-300"
                 }`}
-                onClick={() => setSelectedSkill(skill)}
+                onClick={() => {
+                  setSelectedSkill(skill);
+                  setQuestionSearchTerm("");
+                  setFilteredQuestions(skill.questions || []);
+                }}
               >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="font-semibold text-lg text-blue-900">
+                <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+                  <div className="flex-1">
+                    <div className="font-semibold text-lg text-blue-900 break-words">
                       {skill.name}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-gray-500 break-words">
                       {skill.description}
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 justify-end md:justify-start flex-shrink-0">
                     <Button
                       size="sm"
                       variant="secondary"
@@ -239,26 +304,47 @@ const AdminQuestions: React.FC = () => {
           </div>
         )}
       </div>
+      
       <div
-        className="md:w-2/3 w-full overflow-y-auto pl-2 custom-scrollbar"
-        style={{ maxHeight: "100%" }}
+        className="md:w-2/3 w-full overflow-y-auto pl-2 custom-scrollbar md:max-h-full max-h-[50vh]"
       >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">Questions</h2>
+        <div className="flex flex-col gap-4 mb-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <h2 className="text-xl font-bold">Questions</h2>
+            {selectedSkill && (
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={handleAddQClick}
+                className="w-full md:w-auto"
+              >
+                Add Question
+              </Button>
+            )}
+          </div>
           {selectedSkill && (
-            <Button size="sm" variant="primary" onClick={handleAddQClick}>
-              Add Question
-            </Button>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search questions by text, options, or difficulty..."
+                value={questionSearchTerm}
+                onChange={(e) => handleQuestionSearch(e.target.value)}
+                className="w-full px-4 py-3 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl text-gray-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 transition-all duration-300 shadow-lg"
+              />
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
           )}
         </div>
-        {selectedSkill &&
-        selectedSkill.questions &&
-        selectedSkill.questions.length > 0 ? (
+        {selectedSkill && filteredQuestions.length > 0 ? (
           <div className="space-y-3">
-            {selectedSkill.questions.map((q, idx) => (
+            {filteredQuestions.map((q, idx) => (
               <Card
                 key={q.id ? q.id : `seed-${idx}`}
-                className={`p-4 flex flex-col md:flex-row md:items-center md:justify-between border shadow-sm ${
+                className={`p-4 border shadow-sm ${
                   q.isSeedOnly
                     ? "bg-yellow-50 border-yellow-300"
                     : "bg-white border-gray-200"
@@ -282,7 +368,7 @@ const AdminQuestions: React.FC = () => {
                     Active: {q.is_active ? "Yes" : "No"}
                   </div>
                 </div>
-                <div className="flex gap-2 mt-2 md:mt-0">
+                <div className="flex gap-2 mt-3 justify-start">
                   <Button
                     size="sm"
                     variant="secondary"
@@ -311,8 +397,13 @@ const AdminQuestions: React.FC = () => {
               </Card>
             ))}
           </div>
+        ) : selectedSkill && questionSearchTerm ? (
+          <div className="text-center py-8 text-gray-500">
+            No questions found matching "{questionSearchTerm}"
+          </div>
         ) : null}
       </div>
+      
       {/* Skill Edit Modal */}
       <Modal
         isOpen={showSkillModal}
@@ -345,6 +436,7 @@ const AdminQuestions: React.FC = () => {
           Save
         </Button>
       </Modal>
+      
       {/* Question Edit/Add Modal */}
       <Modal
         isOpen={showQModal}
@@ -463,6 +555,7 @@ const AdminQuestions: React.FC = () => {
           Save
         </Button>
       </Modal>
+      
       {successMsg && (
         <div className="fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-50">
           {successMsg}
