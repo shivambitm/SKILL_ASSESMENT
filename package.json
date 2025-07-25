@@ -24,7 +24,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.8.0",
     "@vercel/analytics": "^1.5.0",
-    "axios": "^1.6.0",
+    "axios": "^1.11.0",
     "date-fns": "^2.30.0",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
