@@ -1,0 +1,25 @@
+/* Layout.module.css */
+
+.layoutRoot {
+  background-color: var(--bg-secondary);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.contentWrapper {
+  display: flex;
+  min-height: 100vh;
+  padding-top: 4rem; /* header height (64px) */
+}
+
+.mainContent {
+  flex: 1;
+  padding: 1.5rem; /* p-6 */
+  transition: background-color 0.3s ease, color 0.3s ease; /* theme-transition */
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  margin-top: -4rem; /* counteract extra space */
+  padding-top: 4rem; /* prevent content hidden under header */
+}
