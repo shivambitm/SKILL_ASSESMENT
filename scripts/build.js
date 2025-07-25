@@ -188,7 +188,7 @@ function dev() {
     `${colors.gray}     Frontend: http://localhost:5173${colors.reset}`
   );
   console.log(
-    `${colors.gray}     Backend API: http://localhost:5002${colors.reset}`
+    `${colors.gray}     Backend API: http://localhost:5000${colors.reset}`
   );
   console.log(`${colors.gray}     Hot Reload: Enabled${colors.reset}`);
   console.log("");

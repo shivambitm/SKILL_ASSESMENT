@@ -151,7 +151,7 @@ function startProduction() {
     `${colors.green}${symbols.lightning} Starting Production Servers:${colors.reset}`
   );
   console.log(
-    `${colors.blue}${symbols.database} Backend API:${colors.reset} ${colors.bright}http://localhost:5002${colors.reset}`
+    `${colors.blue}${symbols.database} Backend API:${colors.reset} ${colors.bright}http://localhost:5000${colors.reset}`
   );
   console.log(
     `${colors.cyan}${symbols.globe} Frontend App:${colors.reset} ${colors.bright}http://localhost:4173${colors.reset}`

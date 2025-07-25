@@ -4,11 +4,9 @@ import Header from "./Header";
 import Sidebar from "./Sidebar";
 import { useTheme } from "../../contexts/ThemeContext";
 import styles from "./Layout.module.css";
-import useVercelAnalytics from "../../hooks/useVercelAnalytics";
 
 const Layout: React.FC = () => {
   useTheme();
-  useVercelAnalytics(); // Track route changes
 
   return (
     <div className={styles.layoutRoot}>

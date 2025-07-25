@@ -232,7 +232,7 @@ CREATE TABLE quiz_answers (
 ### ✅ Currently Running
 
 - **Frontend:** http://localhost:5173/ ✅
-- **Backend:** http://localhost:5002/ ✅
+- **Backend:** http://localhost:5000/ ✅
 - **Database:** SQLite connected ✅
 - **Redis:** Disabled in development (graceful degradation) ✅
 

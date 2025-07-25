@@ -68,7 +68,7 @@ function printDevHeader() {
     `${colors.green}${symbols.computer} Frontend Dev Server:${colors.reset} ${colors.bright}http://localhost:5173${colors.reset}`
   );
   console.log(
-    `${colors.blue}${symbols.database} Backend API Server:${colors.reset} ${colors.bright}http://localhost:5002${colors.reset}`
+    `${colors.blue}${symbols.database} Backend API Server:${colors.reset} ${colors.bright}http://localhost:5000ww${colors.reset}`
   );
   console.log(
     `${colors.yellow}${symbols.lightning} Hot Reload:${colors.reset} ${colors.bright}Enabled${colors.reset}`
@@ -164,7 +164,7 @@ function startDevelopment() {
     const errorText = data.toString();
     if (errorText.includes("EADDRINUSE")) {
       console.log(
-        `${colors.red}${symbols.error} Backend port 5002 is already in use!${colors.reset}`
+        `${colors.red}${symbols.error} Backend port 5000 is already in use!${colors.reset}`
       );
       console.log(
         `${colors.yellow}${symbols.warning} Please stop other backend processes or change the port${colors.reset}`

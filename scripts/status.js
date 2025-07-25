@@ -184,10 +184,10 @@ async function runHealthCheck() {
   // Check backend API
   console.log(`${colors.gray}     Checking backend API...${colors.reset}`);
   const backendHealth = await checkEndpoint(
-    "http://localhost:5002/api/auth/test"
+    "http://localhost:5000/api/auth/test"
   );
   checkStatus(
-    "Backend API (Port 5002)",
+    "Backend API (Port 5000)",
     backendHealth.success,
     backendHealth.success ? `HTTP ${backendHealth.status}` : "Not responding"
   );
