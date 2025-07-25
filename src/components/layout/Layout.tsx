@@ -3,29 +3,19 @@ import { Outlet } from "react-router-dom";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import { useTheme } from "../../contexts/ThemeContext";
+import styles from "./Layout.module.css";
+import useVercelAnalytics from "../../hooks/useVercelAnalytics";
 
 const Layout: React.FC = () => {
-  useTheme(); // Ensure theme context is used
+  useTheme();
+  useVercelAnalytics(); // Track route changes
 
-  // Height of the fixed header (h-16 = 4rem = 64px)
   return (
-    <div
-      className="min-h-screen"
-      style={{ backgroundColor: "var(--bg-secondary)" }}
-    >
+    <div className={styles.layoutRoot}>
       <Header />
-      <div className="flex min-h-screen" style={{ paddingTop: "4rem" }}>
+      <div className={styles.contentWrapper}>
         <Sidebar />
-        <main
-          className="flex-1 p-6 theme-transition"
-          style={{
-            backgroundColor: "var(--bg-secondary)",
-            color: "var(--text-primary)",
-            minHeight: "100vh",
-            marginTop: "-4rem", // counteract the extra space for Sidebar/main
-            paddingTop: "4rem", // ensure content is not hidden under header
-          }}
-        >
+        <main className={styles.mainContent}>
           <Outlet />
         </main>
       </div>

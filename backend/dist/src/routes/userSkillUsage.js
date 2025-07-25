@@ -32,9 +32,10 @@ router.get("/user/:userId/skill-usage", async (req, res) => {
         res.json({ success: true, data: skillStats });
     }
     catch (err) {
+        console.error('Error in skill-usage route:', err);
         res
             .status(500)
-            .json({ success: false, message: "Failed to fetch skill usage" });
+            .json({ success: false, message: "Failed to fetch skill usage", error: err });
     }
 });
 exports.default = router;
