@@ -2,7 +2,7 @@
 // This script will test rate limiting behavior in different environments
 
 // Test parameters
-const API_URL = "http://localhost:5002";
+const API_URL = "http://localhost:5000";
 const AUTH_ENDPOINT = "/api/auth/login";
 const GENERAL_ENDPOINT = "/api/skills";
 const TEST_CREDENTIALS = { email: "test@example.com", password: "password" };
