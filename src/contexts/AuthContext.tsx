@@ -75,24 +75,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string) => {
     try {
-      console.log("🔑 AuthContext: Starting login API call...");
+      // console.log("🔑 AuthContext: Starting login API call...");
       const response = await authApi.login({ email, password });
-      console.log("📡 AuthContext: API response received:", response.data);
+      // console.log("📡 AuthContext: API response received:", response.data);
 
       const { user: userData, token: tokenData } = response.data.data;
-      console.log("👤 AuthContext: User data:", userData);
-      console.log(
-        "🎟️ AuthContext: Token received:",
-        tokenData ? "✅ Yes" : "❌ No"
-      );
+      // console.log("👤 AuthContext: User data:", userData);
+      // console.log(
+      //   "🎟️ AuthContext: Token received:",
+      //   tokenData ? "✅ Yes" : "❌ No"
+      // );
 
       localStorage.setItem("token", tokenData);
       localStorage.setItem("user", JSON.stringify(userData));
-      console.log("💾 AuthContext: Data saved to localStorage");
+      // console.log("💾 AuthContext: Data saved to localStorage");
 
       setToken(tokenData);
       setUser(userData);
-      console.log("✅ AuthContext: State updated successfully");
+      // console.log("✅ AuthContext: State updated successfully");
     } catch (error) {
       console.error("❌ AuthContext: Login error:", error);
       throw error;

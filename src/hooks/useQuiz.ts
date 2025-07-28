@@ -3,7 +3,7 @@ import { quizApi, questionsApi } from "../services/api";
 import type { Question, QuizAttempt, QuizStartResponse } from "../types";
 
 export const useQuiz = (skillId: number) => {
-  console.log("🎯 useQuiz hook initialized with skillId:", skillId);
+  // console.log("🎯 useQuiz hook initialized with skillId:", skillId);
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -43,7 +43,7 @@ export const useQuiz = (skillId: number) => {
 
   // Reset timeRemaining when starting a quiz
   const startQuiz = async (limit: number = 10) => {
-    console.log("🎯 useQuiz.startQuiz called with:", { skillId, limit });
+    // console.log("🎯 useQuiz.startQuiz called with:", { skillId, limit });
 
     // Validate skillId
     if (!skillId || skillId <= 0) {
@@ -57,40 +57,40 @@ export const useQuiz = (skillId: number) => {
     setError(null);
 
     try {
-      console.log("📝 Fetching questions for skill:", skillId);
-      console.log(
-        "🌐 API URL will be:",
-        `${
-          import.meta.env.VITE_API_URL || "http://localhost:5000"
-        }/api/questions/quiz/${skillId}`
-      );
+      // console.log("📝 Fetching questions for skill:", skillId);
+      // console.log(
+      //   "🌐 API URL will be:",
+      //   `${
+      //     import.meta.env.VITE_API_URL || "http://localhost:5000"
+      //   }/api/questions/quiz/${skillId}`
+      // );
 
       // Get questions for the quiz
       const questionsResponse = await questionsApi.getQuizQuestions(
         skillId,
         limit
       );
-      console.log("📦 Raw questions response:", questionsResponse);
+      // console.log("📦 Raw questions response:", questionsResponse);
 
       const quizQuestions = questionsResponse.data.data.questions;
-      console.log("✅ Questions fetched:", quizQuestions.length);
+      // console.log("✅ Questions fetched:", quizQuestions.length);
 
       if (quizQuestions.length === 0) {
         throw new Error("No questions available for this skill");
       }
 
-      console.log("🚀 Starting quiz attempt...");
+      // console.log("🚀 Starting quiz attempt...");
       // Start quiz attempt
       const quizResponse = await quizApi.startQuiz({ skillId });
-      console.log(
-        "🔍 Full quiz response:",
-        JSON.stringify(quizResponse.data, null, 2)
-      );
+      // console.log(
+      //   "🔍 Full quiz response:",
+      //   JSON.stringify(quizResponse.data, null, 2)
+      // );
 
       const newQuizAttempt = quizResponse.data.data.quizAttempt;
-      console.log("✅ Quiz attempt created:", newQuizAttempt);
-      console.log("🔍 Quiz attempt keys:", Object.keys(newQuizAttempt || {}));
-      console.log("🔍 Quiz attempt ID specifically:", newQuizAttempt?.id);
+      // console.log("✅ Quiz attempt created:", newQuizAttempt);
+      // console.log("🔍 Quiz attempt keys:", Object.keys(newQuizAttempt || {}));
+      // console.log("🔍 Quiz attempt ID specifically:", newQuizAttempt?.id);
 
       // Validate that we have a proper quizAttempt with an ID
       if (!newQuizAttempt || !newQuizAttempt.id) {
@@ -105,9 +105,9 @@ export const useQuiz = (skillId: number) => {
         throw new Error("Failed to create a valid quiz attempt - missing ID");
       }
 
-      console.log("🎉 Quiz started successfully, setting state:");
-      console.log("- Questions:", quizQuestions.length);
-      console.log("- Quiz attempt:", newQuizAttempt);
+      // console.log("🎉 Quiz started successfully, setting state:");
+      // console.log("- Questions:", quizQuestions.length);
+      // console.log("- Quiz attempt:", newQuizAttempt);
 
       setQuestions(quizQuestions);
       setQuizAttempt(newQuizAttempt);
@@ -117,7 +117,7 @@ export const useQuiz = (skillId: number) => {
       setTimeRemaining(MAX_QUIZ_TIME);
       setIsCompleted(false);
 
-      console.log("✨ State updated successfully");
+      // console.log("✨ State updated successfully");
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
 
@@ -164,7 +164,7 @@ export const useQuiz = (skillId: number) => {
         selectedAnswer: answer,
         timeTaken: MAX_QUIZ_TIME - timeRemaining, // Use time taken from countdown
       };
-      console.log("Submitting answer:", payload);
+      // console.log("Submitting answer:", payload);
 
       await quizApi.submitAnswer(payload);
     } catch (err: unknown) {
@@ -206,8 +206,8 @@ export const useQuiz = (skillId: number) => {
       return null;
     }
 
-    console.log("Complete quiz - quiz attempt:", quizAttempt);
-    console.log("Complete quiz - quiz attempt ID:", quizAttempt.id);
+    // console.log("Complete quiz - quiz attempt:", quizAttempt);
+    // console.log("Complete quiz - quiz attempt ID:", quizAttempt.id);
 
     setIsLoading(true);
     try {
@@ -215,7 +215,7 @@ export const useQuiz = (skillId: number) => {
         quizAttemptId: quizAttempt.id,
         timeTaken: MAX_QUIZ_TIME - timeRemaining, // Use time taken from countdown
       };
-      console.log("Completing quiz:", payload);
+      // console.log("Completing quiz:", payload);
 
       const response = await quizApi.completeQuiz(payload);
 
