@@ -39,12 +39,12 @@ const Login: React.FC = () => {
     setError("");
     setLoading(true);
 
-    console.log("🔐 Starting login process...");
-    console.log("📧 Email:", email);
-    console.log("🔒 Password length:", password.length);
+    // console.log("🔐 Starting login process...");
+    // console.log("📧 Email:", email);
+    // console.log("🔒 Password length:", password.length);
 
     try {
-      console.log("🚀 Calling login function...");
+      // console.log("🚀 Calling login function...");
       await login(email, password);
       // After login, get the user from localStorage (since login sets it)
       const userData = JSON.parse(localStorage.getItem("user") || "null");

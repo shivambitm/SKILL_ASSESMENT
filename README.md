@@ -1,248 +1,313 @@
-# Skill Assessment & Reporting Portal
+<div align="center">
 
-A comprehensive web-based system for skill assessment through quizzes, user management, and detailed reporting. Built with React, Node.js, Express, and MySQL.
+# 🎯 Skill Assessment & Reporting Portal
 
-## Features
+### _Empowering Students & HR Professionals with Comprehensive Skill Evaluation_
 
-### User Features
+[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-Visit_Now-blue?style=for-the-badge)](https://skills.shivastra.in)
+[![GitHub Stars](https://img.shields.io/github/stars/shivambitm/SKILL_ASSESMENT?style=for-the-badge&color=yellow&label=⭐%20Stars)](https://github.com/shivambitm/SKILL_ASSESMENT/stargazers)
+[![GitHub Forks](https://img.shields.io/github/forks/shivambitm/SKILL_ASSESMENT?style=for-the-badge&color=green&label=🍴%20Forks)](https://github.com/shivambitm/SKILL_ASSESMENT/network/members)
+[![Contributors](https://img.shields.io/github/contributors/shivambitm/SKILL_ASSESMENT?style=for-the-badge&color=orange&label=👥%20Contributors)](https://github.com/shivambitm/SKILL_ASSESMENT/graphs/contributors)
+[![GitHub Followers](https://img.shields.io/github/followers/shivambitm?style=for-the-badge&color=purple&label=👤%20Followers)](https://github.com/shivambitm?tab=followers)
+[![GitHub Issues](https://img.shields.io/github/issues/shivambitm/SKILL_ASSESMENT?style=for-the-badge&color=red&label=🐛%20Issues)](https://github.com/shivambitm/SKILL_ASSESMENT/issues)
+[![GitHub Pull Requests](https://img.shields.io/github/issues-pr/shivambitm/SKILL_ASSESMENT?style=for-the-badge&color=blue&label=🔄%20PRs)](https://github.com/shivambitm/SKILL_ASSESMENT/pulls)
+[![License](https://img.shields.io/github/license/shivambitm/SKILL_ASSESMENT?style=for-the-badge&color=brightgreen&label=📄%20License)](https://github.com/shivambitm/SKILL_ASSESMENT/blob/main/LICENSE)
 
-- **User Registration & Authentication**: Secure JWT-based authentication
-- **Interactive Quizzes**: Take skill-based multiple-choice quizzes
-- **Performance Tracking**: View detailed quiz history and performance analytics
-- **Leaderboard**: Compare performance with other users
-- **Personal Dashboard**: Overview of achievements and progress
+_A modern, comprehensive web-based system for skill assessment through interactive quizzes, advanced user management, and detailed performance reporting. Perfect for educational institutions, HR departments, and professional development._
 
-### Admin Features
+<div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin: 40px 0;">
+  <a href="#-quick-start" style="
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: #4f46e5;
+    padding: 14px 28px;
+    border-radius: 30px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 16px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 10px 25px rgba(79, 70, 229, 0.2);
+    position: relative;
+    overflow: hidden;
+  " onmouseover="
+    this.style.background='rgba(79, 70, 229, 0.9)';
+    this.style.color='white';
+    this.style.transform='translateY(-5px) scale(1.05)';
+    this.style.boxShadow='0 20px 40px rgba(79, 70, 229, 0.4)';
+  " onmouseout="
+    this.style.background='rgba(255, 255, 255, 0.1)';
+    this.style.color='#4f46e5';
+    this.style.transform='translateY(0) scale(1)';
+    this.style.boxShadow='0 10px 25px rgba(79, 70, 229, 0.2)';
+  ">
+    🚀 Get Started
+  </a>
+  
+  <a href="#-api-documentation" style="
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: #059669;
+    padding: 14px 28px;
+    border-radius: 30px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 16px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 10px 25px rgba(5, 150, 105, 0.2);
+  " onmouseover="
+    this.style.background='rgba(5, 150, 105, 0.9)';
+    this.style.color='white';
+    this.style.transform='translateY(-5px) scale(1.05)';
+    this.style.boxShadow='0 20px 40px rgba(5, 150, 105, 0.4)';
+  " onmouseout="
+    this.style.background='rgba(255, 255, 255, 0.1)';
+    this.style.color='#059669';
+    this.style.transform='translateY(0) scale(1)';
+    this.style.boxShadow='0 10px 25px rgba(5, 150, 105, 0.2)';
+  ">
+    📖 Documentation
+  </a>
+  
+  <a href="#-contributing" style="
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: #dc2626;
+    padding: 14px 28px;
+    border-radius: 30px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 16px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 10px 25px rgba(220, 38, 38, 0.2);
+  " onmouseover="
+    this.style.background='rgba(220, 38, 38, 0.9)';
+    this.style.color='white';
+    this.style.transform='translateY(-5px) scale(1.05)';
+    this.style.boxShadow='0 20px 40px rgba(220, 38, 38, 0.4)';
+  " onmouseout="
+    this.style.background='rgba(255, 255, 255, 0.1)';
+    this.style.color='#dc2626';
+    this.style.transform='translateY(0) scale(1)';
+    this.style.boxShadow='0 10px 25px rgba(220, 38, 38, 0.2)';
+  ">
+    🤝 Contribute
+  </a>
+  
+  <a href="#-support" style="
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: #7c3aed;
+    padding: 14px 28px;
+    border-radius: 30px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 16px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 10px 25px rgba(124, 58, 237, 0.2);
+  " onmouseover="
+    this.style.background='rgba(124, 58, 237, 0.9)';
+    this.style.color='white';
+    this.style.transform='translateY(-5px) scale(1.05)';
+    this.style.boxShadow='0 20px 40px rgba(124, 58, 237, 0.4)';
+  " onmouseout="
+    this.style.background='rgba(255, 255, 255, 0.1)';
+    this.style.color='#7c3aed';
+    this.style.transform='translateY(0) scale(1)';
+    this.style.boxShadow='0 10px 25px rgba(124, 58, 237, 0.2)';
+  ">
+    💬 Support
+  </a>
+</div>
 
-- **User Management**: Full CRUD operations for user accounts
-- **Skill Management**: Create and manage skill categories
-- **Question Management**: Add, edit, and organize quiz questions
-- **Comprehensive Reports**: User performance, skill gaps, and system analytics
-- **Real-time Analytics**: Dashboard with charts and statistics
+</div>
 
-### Technical Features
+---
 
-- **Role-based Access Control**: Admin and user roles with appropriate permissions
-- **Responsive Design**: Mobile-friendly interface
-- **Real-time Updates**: Live performance tracking
-- **Secure APIs**: JWT authentication and input validation
-- **Database Optimization**: Proper indexing and query optimization
-- **Caching**: Redis integration for improved performance
-- **Testing**: Unit tests for backend routes
-- **Docker Support**: Containerized deployment
+## 🌟 **Why Choose Our Platform?**
 
-## Tech Stack
+<table>
+<tr>
+<td width="50%">
+
+### 👨‍🎓 **For Students**
+
+- 📊 **Real-time Performance Analytics**
+- 🏆 **Interactive Leaderboards**
+- 📱 **Mobile-Responsive Design**
+- ⚡ **Instant Quiz Results**
+- 📈 **Progress Tracking**
+
+</td>
+<td width="50%">
+
+### 👩‍💼 **For HR Professionals**
+
+- 🎯 **Comprehensive Skill Assessment**
+- 📋 **Detailed Candidate Reports**
+- 🔍 **Skill Gap Analysis**
+- 👥 **Bulk User Management**
+- 📊 **Advanced Analytics Dashboard**
+
+</td>
+</tr>
+</table>
+
+---
+
+## ✨ **Key Features**
+
+### 🔐 **Authentication & Security**
+
+- **JWT-based Authentication** - Secure token-based login system
+- **Role-based Access Control** - Admin and user permissions
+- **Password Encryption** - bcryptjs with salt rounds
+- **Input Validation** - Comprehensive data validation
+- **Rate Limiting** - API protection against abuse
+
+### 🎮 **Interactive Quiz System**
+
+- **Timed Assessments** - 5-minute skill-based quizzes
+- **Multiple Choice Questions** - A, B, C, D format
+- **Difficulty Levels** - Easy, Medium, Hard questions
+- **Real-time Scoring** - Instant performance feedback
+- **Progress Tracking** - Visual progress indicators
+
+### 📊 **Advanced Analytics**
+
+- **Performance Dashboard** - Comprehensive user analytics
+- **Skill Gap Analysis** - Identify improvement areas
+- **Leaderboard System** - Competitive performance tracking
+- **Historical Data** - Track progress over time
+- **Export Reports** - Download performance data
+
+### 🛠 **Admin Management**
+
+- **User Management** - Full CRUD operations
+- **Question Bank** - Add, edit, organize questions
+- **Skill Categories** - Create and manage skill sets
+- **System Reports** - Platform usage analytics
+- **Bulk Operations** - Efficient data management
+
+---
+
+## 🚀 **Tech Stack**
+
+<div align="center">
 
 ### Frontend
 
-- **React 18** with TypeScript
-- **React Router** for navigation
-- **Tailwind CSS** for styling
-- **Recharts** for data visualization
-- **Tanstack Query** for data fetching
-- **Lucide React** for icons
+![React](https://img.shields.io/badge/React_18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![React Router](https://img.shields.io/badge/React_Router-CA4245?style=for-the-badge&logo=react-router&logoColor=white)
 
 ### Backend
 
-- **Node.js** with Express
-- **TypeScript** for type safety
-- **MySQL** database with proper schema design
-- **JWT** for authentication
-- **bcryptjs** for password hashing
-- **Redis** for caching
-- **Joi** for input validation
-- **Jest** for testing
+![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)
+![Express.js](https://img.shields.io/badge/Express.js-404D59?style=for-the-badge)
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
+![JWT](https://img.shields.io/badge/JWT-black?style=for-the-badge&logo=JSON%20web%20tokens)
 
-### DevOps
+### Database & Caching
 
-- **Docker** containerization
-- **Docker Compose** for multi-service setup
-- **Environment-based configuration**
-- **Health checks** and monitoring
+![MySQL](https://img.shields.io/badge/MySQL-00000F?style=for-the-badge&logo=mysql&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)
 
-## Installation & Setup
+### DevOps & Tools
 
-### Prerequisites
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![Jest](https://img.shields.io/badge/Jest-323330?style=for-the-badge&logo=Jest&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
 
-- Node.js (v16 or higher)
-- MySQL (v8.0 or higher)
-- Redis (optional, for caching)
-- npm or yarn
+</div>
 
-### Development Setup
+---
 
-1. **Clone the repository**
+## 🏃‍♂️ **Quick Start**
 
-   ```bash
-   git clone https://github.com/shivambitm/SKILL_ASSESMENT.git
-   or can use SSH -> git clone git@github.com:shivambitm/SKILL_ASSESMENT.git
-   cd SKILL_ASSESMENT
-   ```
+### 📋 **Prerequisites**
 
-2. **Install dependencies**
+- Node.js (v16+)
+- MySQL (v8.0+)
+- Redis (optional)
+- Git
 
-   ```bash
-   # Install frontend dependencies
-   npm install
-
-   # Install backend dependencies
-   cd backend
-   npm install
-   cd ..
-   ```
-
-3. **Environment Configuration**
-
-   Create `backend/.env` file:
-
-   ```env
-   NODE_ENV=development
-   PORT=5000
-   JWT_SECRET=your-super-secret-jwt-key-here
-   JWT_EXPIRE=7d
-
-   # Database Configuration
-   DB_HOST=localhost
-   DB_PORT=3306
-   DB_USER=root
-   DB_PASSWORD=your-password
-   DB_NAME=skill_assessment
-
-   # Redis Configuration (optional)
-   REDIS_HOST=localhost
-   REDIS_PORT=6379
-
-   # CORS
-   CORS_ORIGIN=http://localhost:3000
-   ```
-
-4. **Database Setup**
-
-   ```bash
-   # Create MySQL database
-   mysql -u root -p
-   CREATE DATABASE skill_assessment;
-
-   # Run migrations (automatically handled by the app)
-   cd backend
-   npm run dev
-   ```
-
-5. **Seed Database** (Optional)
-
-   ```bash
-   cd backend
-   npm run seed
-   ```
-
-6. **Start Development Servers**
-
-   ```bash
-   # Start both frontend and backend
-   npm run dev:full
-
-   # You will see like this in the Terminal
-   hp@DESKTOP-HICFBA3 MINGW64 /f/SKILL_ASSESMENT (feature/fix-errors)
-   $ npm run dev
-   ```
-
-> skill-assessment-frontend@1.0.0 dev
-> node scripts/dev.js
-
-════════════════════════════════════════════════════════════════════════════════
-🚀 SKILL ASSESSMENT PORTAL - DEVELOPMENT MODE
-Full-Stack Development Environment
-⏱ Started at 14:24:10
-════════════════════════════════════════════════════════════════════════════════
-
-💻 Frontend Dev Server: http://localhost:5173
-🗄 Backend API Server: http://localhost:5000
-⚡ Hot Reload: Enabled
-
-Press Ctrl+C to stop all servers
-────────────────────────────────────────────────────────────────────────────────
-
-[14:24:11] [BACKEND] [nodemon] 3.1.10
-[14:24:11] [BACKEND] [nodemon] to restart at any time, enter `rs`
-[14:24:11] [BACKEND] [nodemon] watching extensions: ts,json
-[14:24:11] [BACKEND] [nodemon] starting `ts-node --transpile-only src/server.ts src/server.ts`
-[14:24:11] [FRONTEND] ✅ VITE v6.3.5 ready in 421 ms
-[14:24:11] [FRONTEND] ➜ Local: http://localhost:5173/
-[14:24:11] [FRONTEND] ➜ Network: use --host to expose
-[14:24:12] [BACKEND] Environment: development
-[14:24:12] [BACKEND] Development mode: Rate limiting is relaxed
-[14:24:12] [BACKEND] Auth routes module loaded
-[14:24:13] [BACKEND] Starting server in development environment
-[14:24:13] [BACKEND] Mounting auth routes...
-[14:24:13] [BACKEND] All routes mounted successfully
-[14:24:13] [BACKEND] ✅ Database connected successfully
-[14:24:13] [BACKEND] Database migrations completed successfully
-[14:24:13] [BACKEND] Connecting to Redis...
-[14:24:13] [BACKEND] Redis connection skipped in development mode
-[14:24:13] [BACKEND] Server running on port 5000
-[14:24:13] [BACKEND] Rate limiting: Relaxed (Development)
-[14:24:22] [FRONTEND] Browserslist: caniuse-lite is outdated. Please run:
-[14:24:22] [FRONTEND] npx update-browserslist-db@latest
-[14:24:22] [FRONTEND] Why you should do it regularly: https://github.com/browserslist/update-db#readme
-
-# Or start individually
-
-# Backend
-
-cd backend && npm run dev
-
-# Frontend
-
-npm run dev
-
-````
-
-### Production Deployment
-
-#### Using Docker
-
-1. **Build and start services**
+### ⚡ **One-Command Setup**
 
 ```bash
-cd backend
-docker-compose up -d
-````
+# Clone and setup everything
+git clone https://github.com/shivambitm/SKILL_ASSESMENT.git
+cd SKILL_ASSESMENT
+npm install && cd backend && npm install && cd ..
+```
 
-2. **Build frontend**
-   ```bash
-   npm run build
-   ```
+### 🔧 **Environment Configuration**
 
-#### Manual Deployment
+Create `backend/.env`:
 
-1. **Build backend**
+```env
+NODE_ENV=development
+PORT=5000
+JWT_SECRET=your-super-secret-jwt-key-here
+JWT_EXPIRE=7d
 
-   ```bash
-   cd backend
-   npm run build
-   ```
+# Database
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your-password
+DB_NAME=skill_assessment
 
-2. **Build frontend**
+# Redis (optional)
+REDIS_HOST=localhost
+REDIS_PORT=6379
 
-   ```bash
-   npm run build
-   ```
+# CORS
+CORS_ORIGIN=http://localhost:3000
+```
 
-3. **Start production server**
-   ```bash
-   cd backend
-   npm start
-   ```
+### 🚀 **Launch Application**
 
-## API Documentation
+```bash
+# Start both frontend and backend
+npm run dev:full
+```
 
-### Authentication Endpoints
+**🎉 That's it! Visit:**
 
-#### POST /api/auth/register
+- 💻 **Frontend**: http://localhost:5173
+- 🗄 **Backend API**: http://localhost:5000
 
-Register a new user
+---
 
-```json
+## 🔑 **Demo Credentials**
+
+<div align="center">
+
+| Role         | Email               | Password   |
+| ------------ | ------------------- | ---------- |
+| 👑 **Admin** | `admin@example.com` | `admin123` |
+| 👤 **User**  | `user@example.com`  | `user123`  |
+
+</div>
+
+---
+
+## 📖 **API Documentation**
+
+<details>
+<summary><b>🔐 Authentication Endpoints</b></summary>
+
+### Register User
+
+```http
+POST /api/auth/register
+Content-Type: application/json
+
 {
   "email": "user@example.com",
   "password": "password123",
@@ -251,44 +316,49 @@ Register a new user
 }
 ```
 
-#### POST /api/auth/login
+### Login
 
-Login user
+```http
+POST /api/auth/login
+Content-Type: application/json
 
-```json
 {
   "email": "user@example.com",
   "password": "password123"
 }
 ```
 
-#### GET /api/auth/me
+### Get Current User
 
-Get current user (requires authentication)
+```http
+GET /api/auth/me
+Authorization: Bearer <token>
+```
 
-### Quiz Endpoints
+</details>
 
-#### GET /api/skills
+<details>
+<summary><b>🎯 Quiz Endpoints</b></summary>
 
-Get all available skills
+### Start Quiz
 
-- Query params: `page`, `limit`, `search`, `category`, `isActive`
+```http
+POST /api/quiz/start
+Authorization: Bearer <token>
+Content-Type: application/json
 
-#### POST /api/quiz/start
-
-Start a new quiz
-
-```json
 {
   "skillId": 1
 }
 ```
 
-#### POST /api/quiz/answer
+### Submit Answer
 
-Submit an answer
+```http
+POST /api/quiz/answer
+Authorization: Bearer <token>
+Content-Type: application/json
 
-```json
 {
   "quizAttemptId": 1,
   "questionId": 1,
@@ -297,28 +367,31 @@ Submit an answer
 }
 ```
 
-#### POST /api/quiz/complete
+### Complete Quiz
 
-Complete quiz
+```http
+POST /api/quiz/complete
+Authorization: Bearer <token>
+Content-Type: application/json
 
-```json
 {
   "quizAttemptId": 1,
   "timeTaken": 300
 }
 ```
 
-### Admin Endpoints (requires admin role)
+</details>
 
-#### GET /api/users
+<details>
+<summary><b>👑 Admin Endpoints</b></summary>
 
-Get all users with pagination and filtering
+### Create Skill
 
-#### POST /api/skills
+```http
+POST /api/skills
+Authorization: Bearer <admin-token>
+Content-Type: application/json
 
-Create new skill
-
-```json
 {
   "name": "JavaScript",
   "description": "JavaScript fundamentals",
@@ -326,11 +399,13 @@ Create new skill
 }
 ```
 
-#### POST /api/questions
+### Create Question
 
-Create new question
+```http
+POST /api/questions
+Authorization: Bearer <admin-token>
+Content-Type: application/json
 
-```json
 {
   "skillId": 1,
   "questionText": "What is JavaScript?",
@@ -344,182 +419,455 @@ Create new question
 }
 ```
 
-### Reports Endpoints
+</details>
 
-#### GET /api/reports/user/:userId
+---
 
-Get user performance report
+## 🗄 **Database Schema**
 
-- Query params: `period` (all, week, month)
-
-#### GET /api/reports/skill-gaps
-
-Get skill gap analysis (admin only)
-
-#### GET /api/reports/overview
-
-Get system overview (admin only)
-
-#### GET /api/reports/leaderboard
-
-Get user leaderboard
-
-- Query params: `period`, `skillId`, `limit`
-
-## Database Schema
+<details>
+<summary><b>📊 View Database Structure</b></summary>
 
 ### Users Table
 
-- `id` (Primary Key)
-- `email` (Unique)
-- `password` (Hashed)
-- `first_name`
-- `last_name`
-- `role` (admin/user)
-- `is_active`
-- `created_at`
-- `updated_at`
+```sql
+CREATE TABLE users (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  first_name VARCHAR(100) NOT NULL,
+  last_name VARCHAR(100) NOT NULL,
+  role ENUM('admin', 'user') DEFAULT 'user',
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
 
 ### Skills Table
 
-- `id` (Primary Key)
-- `name`
-- `description`
-- `category`
-- `is_active`
-- `created_at`
-- `updated_at`
+```sql
+CREATE TABLE skills (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  category VARCHAR(100),
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
 
 ### Questions Table
 
-- `id` (Primary Key)
-- `skill_id` (Foreign Key)
-- `question_text`
-- `option_a`, `option_b`, `option_c`, `option_d`
-- `correct_answer`
-- `difficulty`
-- `points`
-- `is_active`
-- `created_at`
-- `updated_at`
+```sql
+CREATE TABLE questions (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  skill_id INT NOT NULL,
+  question_text TEXT NOT NULL,
+  option_a VARCHAR(500) NOT NULL,
+  option_b VARCHAR(500) NOT NULL,
+  option_c VARCHAR(500) NOT NULL,
+  option_d VARCHAR(500) NOT NULL,
+  correct_answer ENUM('A', 'B', 'C', 'D') NOT NULL,
+  difficulty ENUM('easy', 'medium', 'hard') DEFAULT 'easy',
+  points INT DEFAULT 1,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE CASCADE
+);
+```
 
-### Quiz Attempts Table
+</details>
 
-- `id` (Primary Key)
-- `user_id` (Foreign Key)
-- `skill_id` (Foreign Key)
-- `total_questions`
-- `correct_answers`
-- `score_percentage`
-- `time_taken`
-- `started_at`
-- `completed_at`
+---
 
-### Quiz Answers Table
+## 🧪 **Testing**
 
-- `id` (Primary Key)
-- `quiz_attempt_id` (Foreign Key)
-- `question_id` (Foreign Key)
-- `selected_answer`
-- `is_correct`
-- `time_taken`
-- `created_at`
+```bash
+# Backend tests
+cd backend && npm test
 
-## Testing
+# Frontend tests
+npm test
 
-### Backend Tests
+# Run all tests
+npm run test:all
+```
+
+---
+
+## 🚀 **Deployment**
+
+### 🐳 **Docker Deployment**
 
 ```bash
 cd backend
-npm test
+docker-compose up -d
 ```
 
-### Frontend Tests
+### 🌐 **Manual Deployment**
 
 ```bash
-npm test
+# Build backend
+cd backend && npm run build
+
+# Build frontend
+npm run build
+
+# Start production server
+cd backend && npm start
 ```
 
-## Default Credentials
+---
 
-After seeding the database:
+## 🤝 **Contributing**
 
-**Admin Account:**
+We welcome contributions from developers, educators, and HR professionals! Here's how you can help make this the **best skill assessment platform**:
 
-- Email: admin@example.com
-- Password: admin123
+### 🎯 **Ways to Contribute**
 
-**User Account:**
+<table>
+<tr>
+<td width="33%">
 
-- Email: user@example.com
-- Password: user123
+#### 💻 **Code Contributions**
 
-## Performance Optimizations
+- 🐛 Bug fixes
+- ✨ New features
+- 🎨 UI/UX improvements
+- ⚡ Performance optimizations
+- 🧪 Test coverage
 
-1. **Database Indexing**: Strategic indexes on frequently queried columns
-2. **Redis Caching**: Caching for reports and skill data
-3. **Query Optimization**: Efficient database queries with proper joins
-4. **Pagination**: All list endpoints support pagination
-5. **Rate Limiting**: API rate limiting to prevent abuse
+</td>
+<td width="33%">
 
-## Security Features
+#### 📚 **Content & Documentation**
 
-1. **JWT Authentication**: Secure token-based authentication
-2. **Password Hashing**: bcryptjs with salt rounds
-3. **Input Validation**: Joi schema validation
-4. **CORS Protection**: Configurable CORS origins
-5. **Helmet**: Security headers
-6. **Rate Limiting**: Request rate limiting
-7. **SQL Injection Prevention**: Parameterized queries
+- 📝 Documentation improvements
+- 🎓 Tutorial creation
+- 🌍 Translations
+- 📖 API documentation
+- 💡 Feature suggestions
 
-## Contributing
+</td>
+<td width="33%">
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new features
-5. Ensure all tests pass
-6. Submit a pull request
+#### 🎯 **Domain Expertise**
 
-## License
+- 📊 Question bank expansion
+- 🏢 HR workflow insights
+- 🎓 Educational best practices
+- 📈 Analytics improvements
+- 🔍 Skill assessment methods
 
-This project is licensed under the MIT License.
+</td>
+</tr>
+</table>
 
-## Support
+### 🚀 **Getting Started with Contributing**
 
-For support and questions, please open an issue in the GitHub repository.
+#### 🐛 **Found a Bug? Here's How to Report It:**
 
-What's Now Working:
-✅ Profile Display: Users can view their profile information
-✅ Profile Editing: Users can edit their first name, last name, and email
-✅ Real-time Updates: The user context is updated when profile changes are saved
-✅ Validation: Prevents duplicate emails and validates required fields
-✅ Password Visibility: Eye icon to toggle password visibility
-✅ Copy Functionality: Copy button for passwords
-✅ Navigation: Profile accessible from header dropdown and sidebar
-🚀 Test the Profile Page:
-Login with demo credentials:
+**Option 1: Quick Bug Report**
+1. 🔍 [Search existing issues](https://github.com/shivambitm/SKILL_ASSESMENT/issues) to avoid duplicates
+2. 🐛 [Create a new issue](https://github.com/shivambitm/SKILL_ASSESMENT/issues/new) with:
+   - Clear bug description
+   - Steps to reproduce
+   - Expected vs actual behavior
+   - Screenshots/error logs
+   - Environment details (OS, browser, Node version)
 
-Email: admin@example.com
-Password: admin123
-Access Profile:
+**Option 2: Fix the Bug Yourself (Recommended)**
 
-Click your name in the header → "Profile Settings"
-Or click "Profile" in the sidebar
-Or visit: {frontend_URL}/profile
-Edit Profile:
+```bash
+# 1. Fork the repository on GitHub
+# Click the "Fork" button on https://github.com/shivambitm/SKILL_ASSESMENT
 
-Click "Edit" button
-Change first name, last name, or email
-Click "Save" - you should see "Profile updated successfully!"
-Change Password:
+# 2. Clone your fork
+git clone https://github.com/YOUR_USERNAME/SKILL_ASSESMENT.git
+cd SKILL_ASSESMENT
 
-Click "Change Password"
-Enter current password: admin123
-Enter new password and confirmation
-Click "Update Password"
-🔐 Available Test Accounts:
-Admin: admin@example.com / admin123
-User: user@example.com / user123
-Your User: studyhardshivam@gmail.com / nCxYq4VyVd.A9GV
-The profile page is now fully functional! 🎉
+# 3. Add upstream remote
+git remote add upstream https://github.com/shivambitm/SKILL_ASSESMENT.git
+
+# 4. Create a new branch for your bug fix
+git checkout -b fix/bug-description
+# Example: git checkout -b fix/login-validation-error
+
+# 5. Make your changes
+# Fix the bug, add tests, update documentation
+
+# 6. Test your changes
+npm test
+npm run dev:full  # Ensure everything works
+
+# 7. Commit your changes
+git add .
+git commit -m "fix: resolve login validation error"
+
+# 8. Push to your fork
+git push origin fix/bug-description
+
+# 9. Create a Pull Request
+# Go to GitHub and click "New Pull Request"
+```
+
+#### ✨ **Adding New Features:**
+
+```bash
+# 1. Fork and clone (same as above)
+
+# 2. Create a feature branch
+git checkout -b feature/amazing-new-feature
+# Example: git checkout -b feature/dark-mode-support
+
+# 3. Develop your feature
+# - Write clean, documented code
+# - Follow existing code style
+# - Add comprehensive tests
+# - Update documentation
+
+# 4. Keep your branch updated
+git fetch upstream
+git rebase upstream/main
+
+# 5. Test thoroughly
+npm test
+npm run build
+npm run dev:full
+
+# 6. Commit with clear messages
+git add .
+git commit -m "feat: add dark mode support with theme switcher"
+
+# 7. Push and create PR
+git push origin feature/amazing-new-feature
+```
+
+#### 📞 **Response Time Commitment**
+
+> **⏰ We guarantee a response within 7 days!**
+> - 🐛 **Bug reports**: Acknowledged within 2-3 days
+> - ✨ **Feature requests**: Reviewed within 5-7 days  
+> - 🔄 **Pull requests**: Feedback within 3-5 days
+> - ❓ **Questions**: Answered within 1-2 days
+
+#### 🎯 **Branch Naming Conventions**
+
+- `fix/issue-description` - Bug fixes
+- `feature/feature-name` - New features
+- `docs/update-description` - Documentation updates
+- `refactor/component-name` - Code refactoring
+- `test/test-description` - Adding tests
+- `chore/task-description` - Maintenance tasks
+
+### 📋 **Contribution Guidelines**
+
+#### 💻 **Code Standards**
+- **TypeScript**: Use proper typing, avoid `any`
+- **ESLint**: Follow configured linting rules
+- **Prettier**: Code formatting is enforced
+- **Comments**: Document complex logic and APIs
+- **Testing**: Minimum 80% code coverage for new features
+
+#### 📝 **Commit Message Format**
+```
+type(scope): description
+
+[optional body]
+
+[optional footer]
+```
+
+**Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+
+**Examples**:
+- `feat(auth): add OAuth2 login support`
+- `fix(quiz): resolve timer not stopping on completion`
+- `docs(api): update authentication endpoints`
+
+#### 🤝 **Community Guidelines**
+- Be respectful and constructive in discussions
+- Help newcomers and answer questions
+- Provide detailed feedback in code reviews
+- Follow our [Code of Conduct](CODE_OF_CONDUCT.md)
+- Use inclusive language in all communications
+
+### 🏆 **Recognition**
+
+All contributors will be:
+
+- ⭐ Listed in our contributors section
+- 🎖 Recognized in release notes
+- 💼 Can showcase their contributions in portfolios
+- 🌟 Invited to join our core team for significant contributions
+
+---
+
+## 🔒 **Security Features**
+
+- 🔐 **JWT Authentication** - Secure token-based system
+- 🛡 **Password Hashing** - bcryptjs with salt rounds
+- ✅ **Input Validation** - Joi schema validation
+- 🌐 **CORS Protection** - Configurable origins
+- 🛡 **Security Headers** - Helmet middleware
+- ⚡ **Rate Limiting** - Request throttling
+- 🔒 **SQL Injection Prevention** - Parameterized queries
+
+---
+
+## 📊 **Performance Optimizations**
+
+- 🗃 **Database Indexing** - Strategic indexes on frequently queried columns
+- ⚡ **Redis Caching** - Caching for reports and skill data
+- 🔍 **Query Optimization** - Efficient database queries with proper joins
+- 📄 **Pagination** - All list endpoints support pagination
+- 🚦 **Rate Limiting** - API rate limiting to prevent abuse
+- 🎯 **Lazy Loading** - Frontend component optimization
+
+---
+
+## 📈 **Roadmap**
+
+### 🎯 **Upcoming Features**
+
+- [ ] 🤖 **AI-Powered Question Generation**
+- [ ] 📱 **Mobile App** (React Native)
+- [ ] 🎥 **Video-based Assessments**
+- [ ] 🌍 **Multi-language Support**
+- [ ] 📊 **Advanced Analytics Dashboard**
+- [ ] 🔗 **Third-party Integrations** (LinkedIn, GitHub)
+- [ ] 🎓 **Certification System**
+- [ ] 📧 **Email Notifications**
+- [ ] 🔄 **Real-time Collaboration**
+- [ ] 📱 **Progressive Web App (PWA)**
+
+---
+
+## 💬 **Support**
+
+<div align="center">
+
+### Need Help? We're Here for You!
+
+<div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin: 30px 0;">
+  <a href="https://github.com/shivambitm/SKILL_ASSESMENT/issues" style="
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.8), rgba(220, 38, 38, 0.8));
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 16px 32px;
+    border-radius: 35px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 16px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 12px 35px rgba(239, 68, 68, 0.3);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+    overflow: hidden;
+  " onmouseover="
+    this.style.transform='translateY(-8px) scale(1.05)';
+    this.style.boxShadow='0 20px 50px rgba(239, 68, 68, 0.5)';
+    this.style.background='linear-gradient(135deg, rgba(239, 68, 68, 1), rgba(220, 38, 38, 1))';
+  " onmouseout="
+    this.style.transform='translateY(0) scale(1)';
+    this.style.boxShadow='0 12px 35px rgba(239, 68, 68, 0.3)';
+    this.style.background='linear-gradient(135deg, rgba(239, 68, 68, 0.8), rgba(220, 38, 38, 0.8))';
+  ">
+    🐛 Report Issues
+  </a>
+  
+  <a href="https://github.com/shivambitm/SKILL_ASSESMENT/discussions" style="
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.8), rgba(37, 99, 235, 0.8));
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 16px 32px;
+    border-radius: 35px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 16px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 12px 35px rgba(59, 130, 246, 0.3);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  " onmouseover="
+    this.style.transform='translateY(-8px) scale(1.05)';
+    this.style.boxShadow='0 20px 50px rgba(59, 130, 246, 0.5)';
+    this.style.background='linear-gradient(135deg, rgba(59, 130, 246, 1), rgba(37, 99, 235, 1))';
+  " onmouseout="
+    this.style.transform='translateY(0) scale(1)';
+    this.style.boxShadow='0 12px 35px rgba(59, 130, 246, 0.3)';
+    this.style.background='linear-gradient(135deg, rgba(59, 130, 246, 0.8), rgba(37, 99, 235, 0.8))';
+  ">
+    💬 Discussions
+  </a>
+</div>
+
+**📧 Email**: [studyhardshivam@gmail.com](mailto:studyhardshivam@gmail.com)
+
+</div>
+
+---
+
+## 📄 **License**
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 **Acknowledgments**
+
+- 💡 **Inspiration**: Modern educational platforms and HR assessment tools
+- 🎨 **Design**: Material Design and modern UI/UX principles
+- 🛠 **Tools**: Amazing open-source libraries and frameworks
+- 👥 **Community**: Contributors and users who make this project better
+
+---
+
+<div align="center">
+
+### 🌟 **Star this repository if you find it helpful!**
+
+<a href="https://github.com/shivambitm/SKILL_ASSESMENT/stargazers" style="
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.9), rgba(245, 158, 11, 0.9));
+  backdrop-filter: blur(20px);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 18px 36px;
+  border-radius: 40px;
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 18px;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 15px 40px rgba(251, 191, 36, 0.4);
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+" onmouseover="
+  this.style.transform='translateY(-10px) scale(1.1)';
+  this.style.boxShadow='0 25px 60px rgba(251, 191, 36, 0.6)';
+  this.style.background='linear-gradient(135deg, rgba(251, 191, 36, 1), rgba(245, 158, 11, 1))';
+  this.style.borderColor='rgba(255, 255, 255, 0.5)';
+" onmouseout="
+  this.style.transform='translateY(0) scale(1)';
+  this.style.boxShadow='0 15px 40px rgba(251, 191, 36, 0.4)';
+  this.style.background='linear-gradient(135deg, rgba(251, 191, 36, 0.9), rgba(245, 158, 11, 0.9))';
+  this.style.borderColor='rgba(255, 255, 255, 0.3)';
+">
+  ⭐ Star on GitHub
+</a>
+
+**Made with ❤️ for the developer and HR community**
+
+_Let's build the future of skill assessment together!_
+
+</div>

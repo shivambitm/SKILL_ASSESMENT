@@ -162,7 +162,7 @@ const QuizPage: React.FC = () => {
   // Keep track of the quizAttempt when it changes
   useEffect(() => {
     if (quizAttempt) {
-      console.log("Quiz attempt updated:", quizAttempt);
+      // console.log("Quiz attempt updated:", quizAttempt);
     }
   }, [quizAttempt]);
 
@@ -176,20 +176,20 @@ const QuizPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSkill]); // Only reset when selectedSkill changes, not when resetQuiz reference changes
   const handleStartQuiz = async () => {
-    console.log("🎬 handleStartQuiz called - button clicked!");
-    console.log("🎯 Current selectedSkill:", selectedSkill);
+    // console.log("🎬 handleStartQuiz called - button clicked!");
+    // console.log("🎯 Current selectedSkill:", selectedSkill);
 
     if (!selectedSkill) {
-      console.log("❌ No skill selected, aborting");
+      // console.log("❌ No skill selected, aborting");
       return;
     }
 
-    console.log("🚀 Starting quiz for skill:", selectedSkill);
+    // console.log("🚀 Starting quiz for skill:", selectedSkill);
 
     try {
-      console.log("📝 About to call startQuiz function...");
+      // console.log("📝 About to call startQuiz function...");
       await startQuiz(10); // Start with 10 questions
-      console.log("✅ Quiz started successfully!");
+      // console.log("✅ Quiz started successfully!");
 
       // Reset completion state when starting a new quiz
       setQuizCompleted(false);
@@ -220,7 +220,7 @@ const QuizPage: React.FC = () => {
       return;
     }
 
-    console.log("Attempting to complete quiz with attempt:", quizAttempt);
+    // console.log("Attempting to complete quiz with attempt:", quizAttempt);
     const score = await completeQuiz();
     if (score) {
       setFinalScore(score);
@@ -251,15 +251,15 @@ const QuizPage: React.FC = () => {
   }, []);
 
   // Debug logging to see current state
-  console.log("🔍 QuizPage render state:", {
-    loading,
-    error,
-    quizCompleted,
-    selectedSkill,
-    questionsLength: questions.length,
-    quizAttempt: quizAttempt?.id,
-    finalScore: finalScore?.scorePercentage,
-  });
+  // console.log("🔍 QuizPage render state:", {
+  //   loading,
+  //   error,
+  //   quizCompleted,
+  //   selectedSkill,
+  //   questionsLength: questions.length,
+  //   quizAttempt: quizAttempt?.id,
+  //   finalScore: finalScore?.scorePercentage,
+  // });
 
   if (loading) {
     return (
@@ -329,7 +329,7 @@ const QuizPage: React.FC = () => {
     currentQuestion &&
     !quizCompleted
   ) {
-    console.log("📋 Rendering quiz interface");
+    // console.log("📋 Rendering quiz interface");
     return (
       <div className="w-full max-w-5xl mx-auto px-4">
         {/* Quiz Header */}
@@ -479,7 +479,7 @@ const QuizPage: React.FC = () => {
 
   // Show loading state when quiz is starting but not ready yet
   if (quizLoading && selectedSkill) {
-    console.log("⏳ Quiz starting - showing loading state");
+    // console.log("⏳ Quiz starting - showing loading state");
     return (
       <div className="w-full max-w-5xl mx-auto px-4">
         <Card className="text-center py-8">

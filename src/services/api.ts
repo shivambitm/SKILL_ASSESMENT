@@ -45,7 +45,7 @@ import type {
 
 const API_BASE_URL = import.meta.env.VITE_API_URL.replace(/\/$/, ""); // remove trailing slash
 
-console.log("API Base URL from ENV FILE:", API_BASE_URL);
+// console.log("API Base URL from ENV FILE:", API_BASE_URL);
 
 // Create axios instance
 const api = axios.create({
@@ -66,10 +66,10 @@ api.interceptors.request.use(
 
     // Log requests (avoid logging in production)
     if (import.meta.env.DEV) {
-      console.log(
-        `Request: ${config.method?.toUpperCase()} ${config.url}`,
-        config.data || {}
-      );
+      // console.log(
+      //   `Request: ${config.method?.toUpperCase()} ${config.url}`,
+      //   config.data || {}
+      // );
     }
 
     return config;
@@ -251,7 +251,7 @@ export const questionsApi = {
 // Quiz API
 export const quizApi = {
   startQuiz: (data: { skillId: number }) => {
-    console.log("Starting quiz for skill:", data);
+    // console.log("Starting quiz for skill:", data);
     return api.post<ApiResponse<{ quizAttempt: QuizStartResponse }>>(
       "/quiz/start",
       data
@@ -270,7 +270,7 @@ export const quizApi = {
       return Promise.reject(new Error("quizAttemptId is required"));
     }
 
-    console.log("Submitting answer:", data);
+    // console.log("Submitting answer:", data);
     return api.post<
       ApiResponse<{ isCorrect: boolean; correctAnswer: "A" | "B" | "C" | "D" }>
     >("/quiz/answer", data);
@@ -283,7 +283,7 @@ export const quizApi = {
       return Promise.reject(new Error("quizAttemptId is required"));
     }
 
-    console.log("Completing quiz:", data);
+    // console.log("Completing quiz:", data);
     return api.post<
       ApiResponse<{
         score: {
