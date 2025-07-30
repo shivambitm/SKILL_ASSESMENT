@@ -451,7 +451,7 @@ router.post("/forgot-password", async (req, res) => {
         console.log(`🔐 Password reset OTP for ${email}: ${otp}`);
         const emailResult = await (0, emailService_1.sendOTPEmail)(email, otp);
         if (!emailResult.success) {
-            console.error('Failed to send email:', emailResult.error);
+            console.error("Failed to send email:", emailResult.error);
             // Still return success but log the error
         }
         res.json({
@@ -473,7 +473,7 @@ router.post("/forgot-password", async (req, res) => {
 router.post("/verify-otp", async (req, res) => {
     try {
         const { email, otp } = req.body;
-        console.log('🔍 OTP Verification Request:', { email, otp });
+        // console.log('🔍 OTP Verification Request:', { email, otp });
         if (!email || !otp) {
             return res.status(400).json({
                 success: false,
@@ -482,9 +482,9 @@ router.post("/verify-otp", async (req, res) => {
         }
         // Find valid OTP
         const [otpRecords] = await database_1.pool.execute("SELECT id, expires_at FROM password_reset_otps WHERE email = ? AND otp = ? AND is_used = FALSE ORDER BY created_at DESC LIMIT 1", [email, otp]);
-        console.log('🔍 OTP Records Found:', otpRecords);
+        // console.log('🔍 OTP Records Found:', otpRecords);
         if (otpRecords.length === 0) {
-            console.log('❌ No OTP records found');
+            console.log("❌ No OTP records found");
             return res.status(400).json({
                 success: false,
                 message: "Invalid or expired OTP",
@@ -493,31 +493,31 @@ router.post("/verify-otp", async (req, res) => {
         const otpRecord = otpRecords[0];
         const expiresAt = new Date(otpRecord.expires_at);
         const now = new Date();
-        console.log('🕐 Time check:', {
-            expiresAt: expiresAt.toISOString(),
-            now: now.toISOString(),
-            isExpired: expiresAt < now
-        });
+        // console.log('🕐 Time check:', {
+        //   expiresAt: expiresAt.toISOString(),
+        //   now: now.toISOString(),
+        //   isExpired: expiresAt < now
+        // });
         if (expiresAt < now) {
-            console.log('❌ OTP has expired');
+            console.log("❌ OTP has expired");
             return res.status(400).json({
                 success: false,
                 message: "OTP has expired",
             });
         }
-        console.log('✅ OTP is valid, proceeding...');
+        // console.log('✅ OTP is valid, proceeding...');
         // Mark OTP as used
-        console.log('🔄 Marking OTP as used...');
+        // console.log('🔄 Marking OTP as used...');
         await database_1.pool.execute("UPDATE password_reset_otps SET is_used = TRUE WHERE id = ?", [otpRecord.id]);
         // Generate temporary token for password reset
         const jwtSecret = process.env.JWT_SECRET;
         if (!jwtSecret) {
-            console.log('❌ JWT_SECRET not found');
+            console.log("❌ JWT_SECRET not found");
             throw new Error("JWT_SECRET is not defined");
         }
-        console.log('🔑 Generating reset token...');
+        // console.log('🔑 Generating reset token...');
         const resetToken = jsonwebtoken_1.default.sign({ email, purpose: "password_reset" }, jwtSecret, { expiresIn: "15m" });
-        console.log('✅ OTP verification successful, sending response');
+        console.log("✅ OTP verification successful, sending response");
         res.json({
             success: true,
             message: "OTP verified successfully",
@@ -581,9 +581,14 @@ router.post("/reset-password", async (req, res) => {
         const saltRounds = 12;
         const hashedPassword = await bcryptjs_1.default.hash(newPassword, saltRounds);
         // Update password
-        await database_1.pool.execute("UPDATE users SET password = ? WHERE email = ?", [hashedPassword, decoded.email]);
+        await database_1.pool.execute("UPDATE users SET password = ? WHERE email = ?", [
+            hashedPassword,
+            decoded.email,
+        ]);
         // Clean up used OTPs for this email
-        await database_1.pool.execute("DELETE FROM password_reset_otps WHERE email = ?", [decoded.email]);
+        await database_1.pool.execute("DELETE FROM password_reset_otps WHERE email = ?", [
+            decoded.email,
+        ]);
         res.json({
             success: true,
             message: "Password reset successfully",
