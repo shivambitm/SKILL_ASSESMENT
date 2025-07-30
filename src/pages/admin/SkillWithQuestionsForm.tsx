@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import "./dashboard-custom.css";
 import Button from "../../components/common/Button";
 import ErrorMessage from "../../components/common/ErrorMessage";
+import { useToast } from "../../contexts/ToastContext";
 import api from "../../services/api";
 
 interface QuestionForm {
@@ -25,6 +26,7 @@ const emptyQuestion: QuestionForm = {
 };
 
 const SkillWithQuestionsForm: React.FC = () => {
+  const { showSuccess, showError } = useToast();
   const [skill, setSkill] = useState({
     name: "",
     description: "",
@@ -67,15 +69,20 @@ const SkillWithQuestionsForm: React.FC = () => {
       });
       const data = res.data;
       if (data.success) {
-        setSuccess("Skill with questions added successfully!");
-        alert(`Skill ${skill.name} with questions added successfully!`);
+        const successMsg = `Skill "${skill.name}" with ${questions.length} questions added successfully!`;
+        showSuccess(successMsg);
+        setSuccess(successMsg);
         setSkill({ name: "", description: "", category: "" });
         setQuestions([{ ...emptyQuestion }]);
       } else {
-        setError(data.message || "Failed to add skill and questions");
+        const errorMsg = data.message || "Failed to add skill and questions";
+        showError(errorMsg);
+        setError(errorMsg);
       }
     } catch {
-      setError("Failed to add skill and questions");
+      const errorMsg = "Failed to add skill and questions";
+      showError(errorMsg);
+      setError(errorMsg);
     } finally {
       setSubmitting(false);
     }

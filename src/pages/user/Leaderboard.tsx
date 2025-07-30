@@ -6,11 +6,13 @@ import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ErrorMessage from "../../components/common/ErrorMessage";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useToast } from "../../contexts/ToastContext";
 import type { Leaderboard as LeaderboardType, Skill } from "../../types";
 
 const Leaderboard: React.FC = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
+  const { showError, showSuccess } = useToast();
   const [leaderboard, setLeaderboard] = useState<
     LeaderboardType["leaderboard"]
   >([]);
@@ -33,7 +35,9 @@ const Leaderboard: React.FC = () => {
         });
 
         const lb = leaderboardResponse.data?.data?.leaderboard;
-        setLeaderboard(Array.isArray(lb) ? lb : []);
+        const leaderboardData = Array.isArray(lb) ? lb : [];
+        setLeaderboard(leaderboardData);
+        showSuccess(`Loaded leaderboard with ${leaderboardData.length} entries!`);
 
         // Fetch skills for filter
         if (!skills || !Array.isArray(skills) || skills.length === 0) {
@@ -44,12 +48,13 @@ const Leaderboard: React.FC = () => {
           setSkills(skillsResponse.data?.data?.items || []);
         }
       } catch (err: unknown) {
+        let errorMsg = "Failed to load leaderboard";
         if (typeof err === "object" && err !== null && "response" in err) {
           // @ts-expect-error error shape from axios is not typed
-          setError(err.response?.data?.message || "Failed to load leaderboard");
-        } else {
-          setError("Failed to load leaderboard");
+          errorMsg = err.response?.data?.message || "Failed to load leaderboard";
         }
+        showError(errorMsg);
+        setError(errorMsg);
       } finally {
         setLoading(false);
       }
