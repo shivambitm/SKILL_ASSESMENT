@@ -7,6 +7,7 @@ import Modal from "../../components/common/Modal";
 import PasswordInput from "../../components/common/PasswordInput";
 import ThemeSwitcher from "../../components/common/ThemeSwitcher";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useToast } from "../../contexts/ToastContext";
 import { BookOpen } from "lucide-react";
 
 const Login: React.FC = () => {
@@ -18,6 +19,7 @@ const Login: React.FC = () => {
 
   const { login } = useAuth();
   const { setTheme } = useTheme();
+  const { showSuccess, showError } = useToast();
   // Force premium theme on login page
   useEffect(() => {
     setTheme("premium");
@@ -48,6 +50,7 @@ const Login: React.FC = () => {
       await login(email, password);
       // After login, get the user from localStorage (since login sets it)
       const userData = JSON.parse(localStorage.getItem("user") || "null");
+      showSuccess(`Welcome back, ${userData?.firstName || 'User'}!`);
       if (userData && userData.role === "admin") {
         navigate("/admin/dashboard", { replace: true });
       } else {
@@ -56,7 +59,9 @@ const Login: React.FC = () => {
     } catch (err: any) {
       console.error("❌ Login error:", err);
       console.error("❌ Error response:", err.response?.data);
-      setError(err.response?.data?.message || "Login failed");
+      const errorMsg = err.response?.data?.message || "Login failed";
+      showError(errorMsg);
+      setError(errorMsg);
       setShowErrorModal(true);
     } finally {
       setLoading(false);
@@ -219,6 +224,15 @@ const Login: React.FC = () => {
             >
               Sign in
             </Button>
+          </div>
+
+          <div className="text-center mt-4">
+            <Link
+              to="/forgot-password"
+              className="text-sm font-medium text-[var(--accent-color)] hover:text-[var(--accent-hover)] transition-colors duration-200 hover:underline"
+            >
+              Forgot your password?
+            </Link>
           </div>
 
           <div className="text-center mt-6">

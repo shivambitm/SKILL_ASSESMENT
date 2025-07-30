@@ -5,9 +5,8 @@ import Button from "../../components/common/Button";
 import ErrorMessage from "../../components/common/ErrorMessage";
 import PasswordInput from "../../components/common/PasswordInput";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useToast } from "../../contexts/ToastContext";
 import { BookOpen } from "lucide-react";
-import { toast, ToastContainer } from "react-toastify"; // ✅ NEW
-import "react-toastify/dist/ReactToastify.css"; // ✅ NEW
 import "./Register.css";
 
 const Register: React.FC = () => {
@@ -26,6 +25,7 @@ const Register: React.FC = () => {
 
   const { register } = useAuth();
   const { setTheme } = useTheme();
+  const { showSuccess, showError, showInfo } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -52,22 +52,28 @@ const Register: React.FC = () => {
     setError("");
 
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
+      const errorMsg = "Passwords do not match";
+      showError(errorMsg);
+      setError(errorMsg);
       return;
     }
 
     if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters long");
+      const errorMsg = "Password must be at least 6 characters long";
+      showError(errorMsg);
+      setError(errorMsg);
       return;
     }
 
     if (formData.role === "admin" && formData.adminPasscode !== "admin") {
-      setError("Invalid admin passcode");
+      const errorMsg = "Invalid admin passcode";
+      showError(errorMsg);
+      setError(errorMsg);
       return;
     }
 
     setLoading(true);
-    toast.info("You are being registered...", { autoClose: 2000 }); // ✅ Toast
+    showInfo("Creating your account...");
 
     try {
       await delay(1000); // optional delay
@@ -79,11 +85,14 @@ const Register: React.FC = () => {
         formData.role as "admin" | "user",
         formData.role === "admin" ? formData.adminPasscode : undefined
       );
+      showSuccess(`Welcome ${formData.firstName}! Your account has been created successfully.`);
       navigate(formData.role === "admin" ? "/admin/dashboard" : "/dashboard");
     } catch (err: unknown) {
       await delay(1000);
       const error = err as { message?: string };
-      setError(error.message || "Registration failed");
+      const errorMsg = error.message || "Registration failed";
+      showError(errorMsg);
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -91,9 +100,7 @@ const Register: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 theme-transition bg-gradient-to-br from-[var(--bg-primary)] to-[var(--bg-secondary)] dark:from-gray-900 dark:to-gray-800">
-      {/* Toast Container */}
-      <ToastContainer position="top-right" theme="colored" />{" "}
-      {/* ✅ Toast Container */}
+
       <header className="w-screen left-0 top-0 flex justify-center items-center py-4 bg-white/80 dark:bg-gray-900/80 shadow-2xl border-b border-gray-200 dark:border-gray-700 mb-8 backdrop-blur-md fixed z-30">
         <span className="text-2xl md:text-3xl font-black tracking-tight drop-shadow-lg w-full text-center px-4">
           Skill Assessment & Reporting Portal

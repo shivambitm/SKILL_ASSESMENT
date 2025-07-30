@@ -10,6 +10,7 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const database_1 = require("../config/database");
 const validation_1 = require("../middleware/validation");
 const auth_1 = require("../middleware/auth");
+const emailService_1 = require("../utils/emailService");
 // Ensure environment variables are loaded
 dotenv_1.default.config();
 const router = express_1.default.Router();
@@ -423,6 +424,179 @@ router.get("/debug-user", auth_1.authenticate, async (req, res) => {
  *       401:
  *         description: Unauthorized
  */
+// Forgot Password - Send OTP
+router.post("/forgot-password", async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: "Email is required",
+            });
+        }
+        // Check if user exists
+        const [users] = await database_1.pool.execute("SELECT id, email FROM users WHERE email = ?", [email]);
+        if (users.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "No account found with this email address",
+            });
+        }
+        // Generate 6-digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+        // Store OTP in database
+        await database_1.pool.execute("INSERT INTO password_reset_otps (email, otp, expires_at) VALUES (?, ?, ?)", [email, otp, expiresAt.toISOString()]);
+        // Send OTP via email
+        console.log(`🔐 Password reset OTP for ${email}: ${otp}`);
+        const emailResult = await (0, emailService_1.sendOTPEmail)(email, otp);
+        if (!emailResult.success) {
+            console.error('Failed to send email:', emailResult.error);
+            // Still return success but log the error
+        }
+        res.json({
+            success: true,
+            message: "OTP sent to your email address",
+            // Remove this in production - only for demo
+            otp: process.env.NODE_ENV === "development" ? otp : undefined,
+        });
+    }
+    catch (error) {
+        console.error("Forgot password error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to process forgot password request",
+        });
+    }
+});
+// Verify OTP
+router.post("/verify-otp", async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+        console.log('🔍 OTP Verification Request:', { email, otp });
+        if (!email || !otp) {
+            return res.status(400).json({
+                success: false,
+                message: "Email and OTP are required",
+            });
+        }
+        // Find valid OTP
+        const [otpRecords] = await database_1.pool.execute("SELECT id, expires_at FROM password_reset_otps WHERE email = ? AND otp = ? AND is_used = FALSE ORDER BY created_at DESC LIMIT 1", [email, otp]);
+        console.log('🔍 OTP Records Found:', otpRecords);
+        if (otpRecords.length === 0) {
+            console.log('❌ No OTP records found');
+            return res.status(400).json({
+                success: false,
+                message: "Invalid or expired OTP",
+            });
+        }
+        const otpRecord = otpRecords[0];
+        const expiresAt = new Date(otpRecord.expires_at);
+        const now = new Date();
+        console.log('🕐 Time check:', {
+            expiresAt: expiresAt.toISOString(),
+            now: now.toISOString(),
+            isExpired: expiresAt < now
+        });
+        if (expiresAt < now) {
+            console.log('❌ OTP has expired');
+            return res.status(400).json({
+                success: false,
+                message: "OTP has expired",
+            });
+        }
+        console.log('✅ OTP is valid, proceeding...');
+        // Mark OTP as used
+        console.log('🔄 Marking OTP as used...');
+        await database_1.pool.execute("UPDATE password_reset_otps SET is_used = TRUE WHERE id = ?", [otpRecord.id]);
+        // Generate temporary token for password reset
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+            console.log('❌ JWT_SECRET not found');
+            throw new Error("JWT_SECRET is not defined");
+        }
+        console.log('🔑 Generating reset token...');
+        const resetToken = jsonwebtoken_1.default.sign({ email, purpose: "password_reset" }, jwtSecret, { expiresIn: "15m" });
+        console.log('✅ OTP verification successful, sending response');
+        res.json({
+            success: true,
+            message: "OTP verified successfully",
+            data: {
+                resetToken,
+            },
+        });
+    }
+    catch (error) {
+        console.error("❌ Verify OTP error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to verify OTP",
+        });
+    }
+});
+// Reset Password
+router.post("/reset-password", async (req, res) => {
+    try {
+        const { resetToken, newPassword, confirmPassword } = req.body;
+        if (!resetToken || !newPassword || !confirmPassword) {
+            return res.status(400).json({
+                success: false,
+                message: "Reset token, new password, and confirm password are required",
+            });
+        }
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({
+                success: false,
+                message: "Passwords do not match",
+            });
+        }
+        if (newPassword.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: "Password must be at least 6 characters long",
+            });
+        }
+        // Verify reset token
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+            throw new Error("JWT_SECRET is not defined");
+        }
+        let decoded;
+        try {
+            decoded = jsonwebtoken_1.default.verify(resetToken, jwtSecret);
+        }
+        catch (error) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid or expired reset token",
+            });
+        }
+        if (decoded.purpose !== "password_reset") {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid reset token",
+            });
+        }
+        // Hash new password
+        const saltRounds = 12;
+        const hashedPassword = await bcryptjs_1.default.hash(newPassword, saltRounds);
+        // Update password
+        await database_1.pool.execute("UPDATE users SET password = ? WHERE email = ?", [hashedPassword, decoded.email]);
+        // Clean up used OTPs for this email
+        await database_1.pool.execute("DELETE FROM password_reset_otps WHERE email = ?", [decoded.email]);
+        res.json({
+            success: true,
+            message: "Password reset successfully",
+        });
+    }
+    catch (error) {
+        console.error("Reset password error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to reset password",
+        });
+    }
+});
 // Temporary password reset endpoint for debugging (REMOVE IN PRODUCTION)
 router.post("/debug-reset-password", auth_1.authenticate, async (req, res) => {
     try {
