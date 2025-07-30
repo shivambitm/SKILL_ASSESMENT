@@ -532,9 +532,9 @@ router.post("/forgot-password", async (req, res) => {
     // Send OTP via email
     console.log(`🔐 Password reset OTP for ${email}: ${otp}`);
     const emailResult = await sendOTPEmail(email, otp);
-    
+
     if (!emailResult.success) {
-      console.error('Failed to send email:', emailResult.error);
+      console.error("Failed to send email:", emailResult.error);
       // Still return success but log the error
     }
 
@@ -558,7 +558,7 @@ router.post("/verify-otp", async (req, res) => {
   try {
     const { email, otp } = req.body;
 
-    console.log('🔍 OTP Verification Request:', { email, otp });
+    // console.log('🔍 OTP Verification Request:', { email, otp });
 
     if (!email || !otp) {
       return res.status(400).json({
@@ -573,10 +573,10 @@ router.post("/verify-otp", async (req, res) => {
       [email, otp]
     );
 
-    console.log('🔍 OTP Records Found:', otpRecords);
+    // console.log('🔍 OTP Records Found:', otpRecords);
 
     if ((otpRecords as any[]).length === 0) {
-      console.log('❌ No OTP records found');
+      console.log("❌ No OTP records found");
       return res.status(400).json({
         success: false,
         message: "Invalid or expired OTP",
@@ -587,24 +587,24 @@ router.post("/verify-otp", async (req, res) => {
     const expiresAt = new Date(otpRecord.expires_at);
     const now = new Date();
 
-    console.log('🕐 Time check:', {
-      expiresAt: expiresAt.toISOString(),
-      now: now.toISOString(),
-      isExpired: expiresAt < now
-    });
+    // console.log('🕐 Time check:', {
+    //   expiresAt: expiresAt.toISOString(),
+    //   now: now.toISOString(),
+    //   isExpired: expiresAt < now
+    // });
 
     if (expiresAt < now) {
-      console.log('❌ OTP has expired');
+      console.log("❌ OTP has expired");
       return res.status(400).json({
         success: false,
         message: "OTP has expired",
       });
     }
 
-    console.log('✅ OTP is valid, proceeding...');
+    // console.log('✅ OTP is valid, proceeding...');
 
     // Mark OTP as used
-    console.log('🔄 Marking OTP as used...');
+    // console.log('🔄 Marking OTP as used...');
     await pool.execute(
       "UPDATE password_reset_otps SET is_used = TRUE WHERE id = ?",
       [otpRecord.id]
@@ -613,18 +613,18 @@ router.post("/verify-otp", async (req, res) => {
     // Generate temporary token for password reset
     const jwtSecret = process.env.JWT_SECRET;
     if (!jwtSecret) {
-      console.log('❌ JWT_SECRET not found');
+      console.log("❌ JWT_SECRET not found");
       throw new Error("JWT_SECRET is not defined");
     }
 
-    console.log('🔑 Generating reset token...');
+    // console.log('🔑 Generating reset token...');
     const resetToken = jwt.sign(
       { email, purpose: "password_reset" },
       jwtSecret,
       { expiresIn: "15m" }
     );
 
-    console.log('✅ OTP verification successful, sending response');
+    console.log("✅ OTP verification successful, sending response");
     res.json({
       success: true,
       message: "OTP verified successfully",
@@ -695,16 +695,15 @@ router.post("/reset-password", async (req, res) => {
     const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
     // Update password
-    await pool.execute(
-      "UPDATE users SET password = ? WHERE email = ?",
-      [hashedPassword, decoded.email]
-    );
+    await pool.execute("UPDATE users SET password = ? WHERE email = ?", [
+      hashedPassword,
+      decoded.email,
+    ]);
 
     // Clean up used OTPs for this email
-    await pool.execute(
-      "DELETE FROM password_reset_otps WHERE email = ?",
-      [decoded.email]
-    );
+    await pool.execute("DELETE FROM password_reset_otps WHERE email = ?", [
+      decoded.email,
+    ]);
 
     res.json({
       success: true,

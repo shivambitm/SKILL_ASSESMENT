@@ -36,7 +36,7 @@ const ForgotPassword: React.FC = () => {
       showSuccess("OTP sent to your email address!");
       setSuccess("OTP sent to your email address!");
       setStep("otp");
-      
+
       // Show OTP in development mode
       if (response.data.data?.otp) {
         showInfo(`Demo OTP: ${response.data.data.otp}`, "Development Mode");
@@ -57,16 +57,16 @@ const ForgotPassword: React.FC = () => {
     setLoading(true);
 
     try {
-      console.log('🔍 Frontend: Verifying OTP...', { email, otp });
+      // console.log('🔍 Frontend: Verifying OTP...', { email, otp });
       const response = await authApi.verifyOtp({ email, otp });
-      console.log('✅ Frontend: OTP response received:', response.data);
+      // console.log('✅ Frontend: OTP response received:', response.data);
       setResetToken(response.data.data.resetToken);
       showSuccess("OTP verified! Please set your new password.");
       setSuccess("OTP verified! Please set your new password.");
       setStep("reset");
     } catch (err: any) {
-      console.error('❌ Frontend: OTP verification failed:', err);
-      console.error('❌ Frontend: Error response:', err.response?.data);
+      console.error("❌ Frontend: OTP verification failed:", err);
+      console.error("❌ Frontend: Error response:", err.response?.data);
       const errorMsg = err.response?.data?.message || "Invalid OTP";
       showError(errorMsg);
       setError(errorMsg);
@@ -104,10 +104,11 @@ const ForgotPassword: React.FC = () => {
       showSuccess("Password reset successfully! Redirecting to login...");
       setSuccess("Password reset successfully! Redirecting to login...");
       setTimeout(() => {
-        window.location.href = "/login";
+        window.location.href = "/";
       }, 2000);
     } catch (err: any) {
-      const errorMsg = err.response?.data?.message || "Failed to reset password";
+      const errorMsg =
+        err.response?.data?.message || "Failed to reset password";
       showError(errorMsg);
       setError(errorMsg);
     } finally {
@@ -118,32 +119,34 @@ const ForgotPassword: React.FC = () => {
   const renderEmailStep = () => (
     <form onSubmit={handleEmailSubmit} className="space-y-6">
       <div className="text-center mb-6">
-        <div 
+        <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl"
           style={{
-            background: "linear-gradient(135deg, var(--accent-color) 60%, var(--accent-hover) 100%)",
+            background:
+              "linear-gradient(135deg, var(--accent-color) 60%, var(--accent-hover) 100%)",
             boxShadow: "0 4px 24px 0 rgba(139,92,246,0.25)",
           }}
         >
           <Mail className="w-8 h-8 text-white drop-shadow-lg" />
         </div>
-        <h2 
+        <h2
           className="text-2xl font-bold mb-2 theme-transition drop-shadow-lg"
           style={{ color: "var(--accent-color)" }}
         >
           Forgot Password?
         </h2>
-        <p 
+        <p
           className="theme-transition"
           style={{ color: "var(--text-secondary)" }}
         >
-          Enter your email address and we'll send you an OTP to reset your password.
+          Enter your email address and we'll send you an OTP to reset your
+          password.
         </p>
       </div>
 
       <div>
-        <label 
-          htmlFor="email" 
+        <label
+          htmlFor="email"
           className="block text-base font-bold mb-2"
           style={{ color: "var(--accent-color)" }}
         >
@@ -174,32 +177,34 @@ const ForgotPassword: React.FC = () => {
   const renderOtpStep = () => (
     <form onSubmit={handleOtpSubmit} className="space-y-6">
       <div className="text-center mb-6">
-        <div 
+        <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl"
           style={{
-            background: "linear-gradient(135deg, rgba(34, 197, 94, 0.9), rgba(22, 163, 74, 0.9))",
+            background:
+              "linear-gradient(135deg, rgba(34, 197, 94, 0.9), rgba(22, 163, 74, 0.9))",
             boxShadow: "0 4px 24px 0 rgba(34, 197, 94, 0.25)",
           }}
         >
           <Shield className="w-8 h-8 text-white drop-shadow-lg" />
         </div>
-        <h2 
+        <h2
           className="text-2xl font-bold mb-2 theme-transition drop-shadow-lg"
           style={{ color: "var(--accent-color)" }}
         >
           Verify OTP
         </h2>
-        <p 
+        <p
           className="theme-transition"
           style={{ color: "var(--text-secondary)" }}
         >
-          Enter the 6-digit OTP sent to <strong style={{ color: "var(--accent-color)" }}>{email}</strong>
+          Enter the 6-digit OTP sent to{" "}
+          <strong style={{ color: "var(--accent-color)" }}>{email}</strong>
         </p>
       </div>
 
       <div>
-        <label 
-          htmlFor="otp" 
+        <label
+          htmlFor="otp"
           className="block text-base font-bold mb-2"
           style={{ color: "var(--accent-color)" }}
         >
@@ -241,22 +246,23 @@ const ForgotPassword: React.FC = () => {
   const renderResetStep = () => (
     <form onSubmit={handlePasswordReset} className="space-y-6">
       <div className="text-center mb-6">
-        <div 
+        <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl"
           style={{
-            background: "linear-gradient(135deg, rgba(124, 58, 237, 0.9), rgba(109, 40, 217, 0.9))",
+            background:
+              "linear-gradient(135deg, rgba(124, 58, 237, 0.9), rgba(109, 40, 217, 0.9))",
             boxShadow: "0 4px 24px 0 rgba(124, 58, 237, 0.25)",
           }}
         >
           <Key className="w-8 h-8 text-white drop-shadow-lg" />
         </div>
-        <h2 
+        <h2
           className="text-2xl font-bold mb-2 theme-transition drop-shadow-lg"
           style={{ color: "var(--accent-color)" }}
         >
           Reset Password
         </h2>
-        <p 
+        <p
           className="theme-transition"
           style={{ color: "var(--text-secondary)" }}
         >
@@ -265,8 +271,8 @@ const ForgotPassword: React.FC = () => {
       </div>
 
       <div>
-        <label 
-          htmlFor="newPassword" 
+        <label
+          htmlFor="newPassword"
           className="block text-base font-bold mb-2"
           style={{ color: "var(--accent-color)" }}
         >
@@ -290,8 +296,8 @@ const ForgotPassword: React.FC = () => {
       </div>
 
       <div>
-        <label 
-          htmlFor="confirmPassword" 
+        <label
+          htmlFor="confirmPassword"
           className="block text-base font-bold mb-2"
           style={{ color: "var(--accent-color)" }}
         >
@@ -341,7 +347,6 @@ const ForgotPassword: React.FC = () => {
         </span>
       </header>
       <div style={{ height: "80px" }} /> {/* Spacer for fixed header */}
-      
       <div
         className="max-w-md w-full space-y-8 rounded-3xl shadow-2xl p-10 border border-gray-200 dark:border-gray-700"
         style={{
@@ -366,12 +371,13 @@ const ForgotPassword: React.FC = () => {
 
         {error && <ErrorMessage message={error} className="mb-4" />}
         {success && (
-          <div 
+          <div
             className="mb-4 p-4 rounded-xl border shadow-lg"
             style={{
-              background: "linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(22, 163, 74, 0.1))",
+              background:
+                "linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(22, 163, 74, 0.1))",
               borderColor: "rgba(34, 197, 94, 0.3)",
-              color: "var(--text-primary)"
+              color: "var(--text-primary)",
             }}
           >
             <p className="text-sm font-medium">{success}</p>
