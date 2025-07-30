@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import Card from "../../components/common/Card";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ErrorMessage from "../../components/common/ErrorMessage";
+import { useToast } from "../../contexts/ToastContext";
 import { adminApi } from "../../services/api";
 // import html2pdf from "html2pdf.js"; // Use CDN/global version instead
 // import NotificationBell from "../../components/common/NotificationBell";
@@ -17,6 +18,7 @@ interface UserReport {
 }
 
 export const AdminReports: React.FC = () => {
+  const { showError, showSuccess, showInfo } = useToast();
   const [reports, setReports] = useState<UserReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,48 +30,61 @@ export const AdminReports: React.FC = () => {
       .getAllUserReports()
       .then((res) => {
         console.debug("[AdminReports] API response:", res);
-        setReports(res.data.reports || []);
+        const userReports = res.data.reports || [];
+        setReports(userReports);
+        showSuccess(`Loaded ${userReports.length} user reports successfully!`);
         setLoading(false);
       })
       .catch((err) => {
         console.error("[AdminReports] API error:", err);
-        setError(err.response?.data?.message || err.message);
+        const errorMsg = err.response?.data?.message || err.message || "Failed to load reports";
+        showError(errorMsg);
+        setError(errorMsg);
         setLoading(false);
       });
   }, []);
 
-  const handleSendNotification = async (userId: number) => {
-    try {
-      await adminApi.sendNotification(
-        userId,
-        "Your quiz result has been assessed by HR/Admin."
-      );
-      setNotification(`Notification sent to user ID ${userId}`);
-      setTimeout(() => setNotification(null), 2000);
-    } catch (err) {
-      setNotification("Failed to send notification");
-      setTimeout(() => setNotification(null), 2000);
-    }
-  };
+  // const handleSendNotification = async (userId: number) => {
+  //   try {
+  //     await adminApi.sendNotification(
+  //       userId,
+  //       "Your quiz result has been assessed by HR/Admin."
+  //     );
+  //     showSuccess(`Notification sent to user ID ${userId}`);
+  //     setNotification(`Notification sent to user ID ${userId}`);
+  //     setTimeout(() => setNotification(null), 2000);
+  //   } catch (err) {
+  //     showError("Failed to send notification");
+  //     setNotification("Failed to send notification");
+  //     setTimeout(() => setNotification(null), 2000);
+  //   }
+  // };
 
-  const handleDownloadPDF = () => {
-    const element = document.getElementById("user-reports-export");
-    // @ts-expect-error: html2pdf is loaded globally via CDN, not imported as a module
-    const html2pdf = window.html2pdf;
-    if (element && html2pdf) {
-      html2pdf()
-        .from(element)
-        .set({
-          margin: 0.5,
-          filename: "user-result-data.pdf",
-          html2canvas: { scale: 2 },
-          jsPDF: { unit: "in", format: "a4", orientation: "portrait" },
-        })
-        .save();
-    } else {
-      alert("PDF export is not available. Please try again later.");
-    }
-  };
+  // const handleDownloadPDF = () => {
+  //   const element = document.getElementById("user-reports-export");
+  //   // @ts-expect-error: html2pdf is loaded globally via CDN, not imported as a module
+  //   const html2pdf = window.html2pdf;
+  //   if (element && html2pdf) {
+  //     showInfo("Generating PDF report...");
+  //     html2pdf()
+  //       .from(element)
+  //       .set({
+  //         margin: 0.5,
+  //         filename: "user-result-data.pdf",
+  //         html2canvas: { scale: 2 },
+  //         jsPDF: { unit: "in", format: "a4", orientation: "portrait" },
+  //       })
+  //       .save()
+  //       .then(() => {
+  //         showSuccess("PDF report downloaded successfully!");
+  //       })
+  //       .catch(() => {
+  //         showError("Failed to generate PDF report");
+  //       });
+  //   } else {
+  //     showError("PDF export is not available. Please try again later.");
+  //   }
+  // };
 
   // Theme-aware background for admin reports
   const theme = localStorage.getItem("theme") || "light";

@@ -94,7 +94,15 @@ const authenticate = async (req, res, next) => {
         next();
     }
     catch (error) {
-        console.error("Authentication error:", error);
+        console.error("❌ Authentication error:", error);
+        // Clear invalid tokens by sending specific error
+        if (error instanceof Error && error.name === 'JsonWebTokenError') {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid token - please login again",
+                code: "INVALID_TOKEN"
+            });
+        }
         return res.status(401).json({
             success: false,
             message: "Invalid token",

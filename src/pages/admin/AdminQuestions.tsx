@@ -3,6 +3,7 @@ import "./admin-questions-scrollbar.css";
 import Card from "../../components/common/Card";
 import Button from "../../components/common/Button";
 import Modal from "../../components/common/Modal";
+import { useToast } from "../../contexts/ToastContext";
 import { skillsApi, adminApi } from "../../services/api";
 
 interface Question {
@@ -26,6 +27,7 @@ interface Skill {
 }
 
 const AdminQuestions: React.FC = () => {
+  const { showSuccess, showError } = useToast();
   const [skills, setSkills] = useState<Skill[]>([]);
   const [filteredSkills, setFilteredSkills] = useState<Skill[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -74,7 +76,9 @@ const AdminQuestions: React.FC = () => {
         setFilteredQuestions([]);
       }
     } catch {
-      setError("Failed to load skills");
+      const errorMsg = "Failed to load skills";
+      showError(errorMsg);
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -126,17 +130,27 @@ const AdminQuestions: React.FC = () => {
   
   const handleEditSave = async () => {
     if (!editSkill) return;
-    await skillsApi.updateSkill(editSkill.id, editForm);
-    setShowSkillModal(false);
-    setEditSkill(null);
-    fetchSkills();
+    try {
+      await skillsApi.updateSkill(editSkill.id, editForm);
+      showSuccess(`Skill "${editForm.name}" updated successfully!`);
+      setShowSkillModal(false);
+      setEditSkill(null);
+      fetchSkills();
+    } catch {
+      showError("Failed to update skill");
+    }
   };
   
   const handleDeleteSkill = async (id: number) => {
     if (!window.confirm("Delete this skill and all its questions?")) return;
-    await skillsApi.deleteSkill(id);
-    setSelectedSkill(null);
-    fetchSkills();
+    try {
+      await skillsApi.deleteSkill(id);
+      showSuccess("Skill deleted successfully!");
+      setSelectedSkill(null);
+      fetchSkills();
+    } catch {
+      showError("Failed to delete skill");
+    }
   };
 
   const handleEditQClick = (q: Question) => {
@@ -181,7 +195,9 @@ const AdminQuestions: React.FC = () => {
       !qForm.option_c.trim() ||
       !qForm.option_d.trim()
     ) {
-      setQError("All fields are required.");
+      const errorMsg = "All fields are required.";
+      showError(errorMsg);
+      setQError(errorMsg);
       return;
     }
     try {
@@ -190,9 +206,11 @@ const AdminQuestions: React.FC = () => {
           skill_id: selectedSkill.id,
           ...qForm,
         });
+        showSuccess("Question added successfully!");
         setSuccessMsg("Question added successfully.");
       } else if (editQ) {
         await adminApi.updateQuestion(editQ.id, qForm);
+        showSuccess("Question updated successfully!");
         setSuccessMsg("Question updated successfully.");
       }
       setShowQModal(false);
@@ -209,15 +227,22 @@ const AdminQuestions: React.FC = () => {
       });
       fetchSkills();
     } catch {
-      setQError("Failed to save question.");
+      const errorMsg = "Failed to save question.";
+      showError(errorMsg);
+      setQError(errorMsg);
     }
   };
   
   const handleDeleteQuestion = async (id?: number) => {
     if (!id) return;
     if (!window.confirm("Delete this question?")) return;
-    await adminApi.deleteQuestion(id);
-    fetchSkills();
+    try {
+      await adminApi.deleteQuestion(id);
+      showSuccess("Question deleted successfully!");
+      fetchSkills();
+    } catch {
+      showError("Failed to delete question");
+    }
   };
 
   return (
@@ -556,17 +581,7 @@ const AdminQuestions: React.FC = () => {
         </Button>
       </Modal>
       
-      {successMsg && (
-        <div className="fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-50">
-          {successMsg}
-          <button
-            className="ml-2 text-white font-bold"
-            onClick={() => setSuccessMsg("")}
-          >
-            ×
-          </button>
-        </div>
-      )}
+
     </div>
   );
 };

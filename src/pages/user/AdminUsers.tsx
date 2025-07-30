@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import Card from "../../components/common/Card";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ErrorMessage from "../../components/common/ErrorMessage";
+import { useToast } from "../../contexts/ToastContext";
 import { adminApi } from "../../services/api";
 
 interface User {
@@ -15,6 +16,7 @@ interface User {
 }
 
 const AdminUsers: React.FC = () => {
+  const { showError, showSuccess } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,12 +27,19 @@ const AdminUsers: React.FC = () => {
       .getAllUserReports()
       .then((res) => {
         console.debug("[AdminUsers] API response:", res);
-        setUsers(res.data.reports || []);
+        const userReports = res.data.reports || [];
+        setUsers(userReports);
+        showSuccess(`Loaded ${userReports.length} user reports successfully!`);
         setLoading(false);
       })
       .catch((err) => {
         console.error("[AdminUsers] API error:", err);
-        setError(err.response?.data?.message || err.message);
+        const errorMsg =
+          err.response?.data?.message ||
+          err.message ||
+          "Failed to load user reports";
+        showError(errorMsg);
+        setError(errorMsg);
         setLoading(false);
       });
   }, []);

@@ -27,6 +27,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { Clock, CheckCircle, ArrowLeft, ArrowRight } from "lucide-react";
 import { skillsApi } from "../../services/api";
 import { useQuiz } from "../../hooks/useQuiz";
+import { useToast } from "../../contexts/ToastContext";
 import type { Skill } from "../../types";
 
 interface QuizScore {
@@ -67,6 +68,7 @@ const skillListStyles = `
 const QuizPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { showSuccess, showError, showInfo } = useToast();
   const [skills, setSkills] = useState<Skill[]>([]);
   const [filteredSkills, setFilteredSkills] = useState<Skill[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -123,8 +125,7 @@ const QuizPage: React.FC = () => {
       } catch (err: unknown) {
         const errorMessage =
           err instanceof Error ? err.message : "Failed to load skills";
-        setError(
-          err &&
+        const errorMsg = err &&
             typeof err === "object" &&
             "response" in err &&
             err.response &&
@@ -134,8 +135,9 @@ const QuizPage: React.FC = () => {
             typeof err.response.data === "object" &&
             "message" in err.response.data
             ? String(err.response.data.message)
-            : errorMessage
-        );
+            : errorMessage;
+        showError(errorMsg);
+        setError(errorMsg);
       } finally {
         setLoading(false);
       }
@@ -188,15 +190,19 @@ const QuizPage: React.FC = () => {
 
     try {
       // console.log("📝 About to call startQuiz function...");
+      showInfo("Starting your quiz...");
       await startQuiz(10); // Start with 10 questions
       // console.log("✅ Quiz started successfully!");
+      showSuccess("Quiz started! Good luck!");
 
       // Reset completion state when starting a new quiz
       setQuizCompleted(false);
       setFinalScore(null);
     } catch (error) {
       console.error("❌ Failed to start quiz:", error);
-      setError("Failed to start quiz. Please try again.");
+      const errorMsg = "Failed to start quiz. Please try again.";
+      showError(errorMsg);
+      setError(errorMsg);
     }
   };
 
@@ -205,7 +211,9 @@ const QuizPage: React.FC = () => {
       console.error("Cannot submit answer: No active quiz attempt", {
         quizAttempt,
       });
-      setError("No active quiz attempt. Please restart the quiz.");
+      const errorMsg = "No active quiz attempt. Please restart the quiz.";
+      showError(errorMsg);
+      setError(errorMsg);
       return;
     }
     await submitAnswer(answer);
@@ -216,7 +224,9 @@ const QuizPage: React.FC = () => {
       console.error("Cannot complete quiz: No active quiz attempt", {
         quizAttempt,
       });
-      setError("No active quiz attempt. Please restart the quiz.");
+      const errorMsg = "No active quiz attempt. Please restart the quiz.";
+      showError(errorMsg);
+      setError(errorMsg);
       return;
     }
 
@@ -225,8 +235,10 @@ const QuizPage: React.FC = () => {
     if (score) {
       setFinalScore(score);
       setQuizCompleted(true);
+      showSuccess(`Quiz completed! You scored ${score.scorePercentage}%`);
     } else {
       console.error("Failed to complete quiz: No score returned");
+      showError("Failed to complete quiz. Please try again.");
     }
   };
 

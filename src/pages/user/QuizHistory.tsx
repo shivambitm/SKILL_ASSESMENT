@@ -2,12 +2,14 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Calendar, Clock, Trophy, Target } from "lucide-react";
 import { quizApi, skillsApi } from "../../services/api";
+import { useToast } from "../../contexts/ToastContext";
 import Card from "../../components/common/Card";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ErrorMessage from "../../components/common/ErrorMessage";
 import Pagination from "../../components/common/Pagination";
 
 const QuizHistory: React.FC = () => {
+  const { showError } = useToast();
   const [quizHistory, setQuizHistory] = useState<
     import("../../types").QuizAttempt[]
   >([]);
@@ -53,6 +55,7 @@ const QuizHistory: React.FC = () => {
           );
         }
       } catch (err: unknown) {
+        let errorMsg = "Failed to load quiz history";
         if (
           err &&
           typeof err === "object" &&
@@ -62,10 +65,10 @@ const QuizHistory: React.FC = () => {
           "data" in err.response
         ) {
           // @ts-expect-error: dynamic error shape
-          setError(err.response.data?.message || "Failed to load quiz history");
-        } else {
-          setError("Failed to load quiz history");
+          errorMsg = err.response.data?.message || "Failed to load quiz history";
         }
+        showError(errorMsg);
+        setError(errorMsg);
       } finally {
         setLoading(false);
       }

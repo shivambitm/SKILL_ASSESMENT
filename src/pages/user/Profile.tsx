@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../contexts/ToastContext";
 import { authApi, usersApi, reportsApi } from "../../services/api";
 import Card from "../../components/common/Card";
 import Button from "../../components/common/Button";
@@ -10,6 +11,7 @@ import { User, Mail, Shield, Edit, Save, X } from "lucide-react";
 
 const Profile: React.FC = () => {
   const { user, updateUser } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -57,10 +59,13 @@ const Profile: React.FC = () => {
       // Update the user context with the new data
       updateUser(updatedUser);
 
+      showSuccess("Profile updated successfully!");
       setSuccess("Profile updated successfully!");
       setIsEditing(false);
     } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to update profile");
+      const errorMsg = err.response?.data?.message || "Failed to update profile";
+      showError(errorMsg);
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -71,12 +76,16 @@ const Profile: React.FC = () => {
     setSuccess("");
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setError("New passwords do not match");
+      const errorMsg = "New passwords do not match";
+      showError(errorMsg);
+      setError(errorMsg);
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
-      setError("Password must be at least 6 characters long");
+      const errorMsg = "Password must be at least 6 characters long";
+      showError(errorMsg);
+      setError(errorMsg);
       return;
     }
 
@@ -87,6 +96,7 @@ const Profile: React.FC = () => {
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword,
       });
+      showSuccess("Password changed successfully!");
       setSuccess("Password changed successfully!");
       setShowPasswordChange(false);
       setPasswordData({
@@ -95,7 +105,9 @@ const Profile: React.FC = () => {
         confirmPassword: "",
       });
     } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to change password");
+      const errorMsg = err.response?.data?.message || "Failed to change password";
+      showError(errorMsg);
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }

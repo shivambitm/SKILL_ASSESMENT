@@ -43,6 +43,7 @@ import {
 } from "recharts";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useToast } from "../../contexts/ToastContext";
 import { reportsApi, skillsApi } from "../../services/api";
 import Card from "../../components/common/Card";
 import Button from "../../components/common/Button";
@@ -74,6 +75,7 @@ interface UserReport {
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   useTheme();
+  const { showError } = useToast();
   const [userReport, setUserReport] = useState<UserReport>({});
   const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,9 +113,9 @@ const Dashboard: React.FC = () => {
         }
       } catch (err: Error | unknown) {
         const error = err as { response?: { data?: { message?: string } } };
-        setError(
-          error.response?.data?.message || "Failed to load dashboard data"
-        );
+        const errorMsg = error.response?.data?.message || "Failed to load dashboard data";
+        showError(errorMsg);
+        setError(errorMsg);
       } finally {
         setLoading(false);
       }
