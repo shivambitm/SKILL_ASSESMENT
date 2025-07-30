@@ -139,8 +139,17 @@ export const authApi = {
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
     api.put<ApiResponse<null>>("/auth/change-password", data),
 
-  // Temporary debug endpoint
+  // Forgot Password Flow
+  forgotPassword: (data: { email: string }) =>
+    api.post<ApiResponse<{ otp?: string }>>("/auth/forgot-password", data),
 
+  verifyOtp: (data: { email: string; otp: string }) =>
+    api.post<ApiResponse<{ resetToken: string }>>("/auth/verify-otp", data),
+
+  resetPassword: (data: { resetToken: string; newPassword: string; confirmPassword: string }) =>
+    api.post<ApiResponse<null>>("/auth/reset-password", data),
+
+  // Temporary debug endpoint
   debugResetPassword: (data: { newPassword: string }) =>
     api.post<ApiResponse<null>>("/auth/debug-reset-password", data),
 };

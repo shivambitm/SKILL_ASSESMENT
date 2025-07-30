@@ -38,6 +38,22 @@ const runMigrations = async () => {
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
+
+  // Create password_reset_otps table
+  db.exec(`
+      CREATE TABLE IF NOT EXISTS password_reset_otps (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL,
+        otp TEXT NOT NULL,
+        expires_at DATETIME NOT NULL,
+        is_used BOOLEAN DEFAULT FALSE,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+  // Create index for password_reset_otps
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_password_reset_otps_email ON password_reset_otps(email)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_password_reset_otps_otp ON password_reset_otps(otp)`);
   try {
     // Create users table
     db.exec(`

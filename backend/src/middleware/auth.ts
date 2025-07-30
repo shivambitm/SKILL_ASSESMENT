@@ -86,18 +86,18 @@ export const authenticate = async (
     );
 
     const users = rows as any[];
-    console.log("🔍 Auth middleware - User lookup:", {
-      searchingForUserId: decoded.userId,
-      foundUsers: users.length,
-      userDetails: users[0]
-        ? {
-            id: users[0].id,
-            email: users[0].email,
-            role: users[0].role,
-            is_active: users[0].is_active,
-          }
-        : null,
-    });
+    // console.log("🔍 Auth middleware - User lookup:", {
+    //   searchingForUserId: decoded.userId,
+    //   foundUsers: users.length,
+    //   userDetails: users[0]
+    //     ? {
+    //         id: users[0].id,
+    //         email: users[0].email,
+    //         role: users[0].role,
+    //         is_active: users[0].is_active,
+    //       }
+    //     : null,
+    // });
 
     if (users.length === 0 || !users[0].is_active) {
       return res.status(401).json({

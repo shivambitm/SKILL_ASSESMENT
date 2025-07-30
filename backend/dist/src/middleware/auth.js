@@ -67,18 +67,18 @@ const authenticate = async (req, res, next) => {
         // Verify user still exists and is active
         const [rows] = await database_1.pool.execute("SELECT id, email, role, is_active FROM users WHERE id = ?", [decoded.userId]);
         const users = rows;
-        console.log("🔍 Auth middleware - User lookup:", {
-            searchingForUserId: decoded.userId,
-            foundUsers: users.length,
-            userDetails: users[0]
-                ? {
-                    id: users[0].id,
-                    email: users[0].email,
-                    role: users[0].role,
-                    is_active: users[0].is_active,
-                }
-                : null,
-        });
+        // console.log("🔍 Auth middleware - User lookup:", {
+        //   searchingForUserId: decoded.userId,
+        //   foundUsers: users.length,
+        //   userDetails: users[0]
+        //     ? {
+        //         id: users[0].id,
+        //         email: users[0].email,
+        //         role: users[0].role,
+        //         is_active: users[0].is_active,
+        //       }
+        //     : null,
+        // });
         if (users.length === 0 || !users[0].is_active) {
             return res.status(401).json({
                 success: false,
