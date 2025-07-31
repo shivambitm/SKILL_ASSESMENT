@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Backend for Skill Assessment Portal",
   "main": "dist/server.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "start": "node dist/src/server.js",
     "dev": "nodemon src/server.ts",

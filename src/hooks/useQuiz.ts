@@ -60,9 +60,7 @@ export const useQuiz = (skillId: number) => {
       // console.log("📝 Fetching questions for skill:", skillId);
       // console.log(
       //   "🌐 API URL will be:",
-      //   `${
-      //     import.meta.env.VITE_API_URL || "http://localhost:5000"
-      //   }/api/questions/quiz/${skillId}`
+      //   `${import.meta.env.VITE_API_URL}/api/questions/quiz/${skillId}`
       // );
 
       // Get questions for the quiz
