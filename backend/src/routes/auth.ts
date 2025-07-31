@@ -350,8 +350,6 @@ router.put(
 
       console.log("🔐 Password change request:", {
         userId: req.user!.userId,
-        currentPasswordLength: currentPassword?.length,
-        newPasswordLength: newPassword?.length,
         timestamp: new Date().toISOString(),
       });
 
@@ -386,8 +384,6 @@ router.put(
       console.log("🔍 Password verification:", {
         userId: req.user!.userId,
         hasStoredPassword: !!users[0].password,
-        storedPasswordLength: users[0].password?.length,
-        providedPasswordLength: currentPassword.length,
       });
 
       // Verify current password
@@ -542,7 +538,7 @@ router.post("/forgot-password", async (req, res) => {
     );
 
     // Send OTP via email
-    console.log(`🔐 Password reset OTP for ${email}: ${otp}`);
+    console.log(`🔐 Password reset OTP sent to: ${email}`);
     const emailResult = await sendOTPEmail(email, otp);
 
     if (!emailResult.success) {
@@ -553,8 +549,7 @@ router.post("/forgot-password", async (req, res) => {
     res.json({
       success: true,
       message: "OTP sent to your email address",
-      // Remove this in production - only for demo
-      otp: process.env.NODE_ENV === "development" ? otp : undefined,
+      // OTP removed for security
     });
   } catch (error) {
     console.error("Forgot password error:", error);

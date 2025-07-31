@@ -75,27 +75,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string) => {
     try {
-      // console.log("🔑 AuthContext: Starting login API call...");
       const response = await authApi.login({ email, password });
-      // console.log("📡 AuthContext: API response received:", response.data);
-
       const { user: userData, token: tokenData } = response.data.data;
-      // console.log("👤 AuthContext: User data:", userData);
-      // console.log(
-      //   "🎟️ AuthContext: Token received:",
-      //   tokenData ? "✅ Yes" : "❌ No"
-      // );
 
       localStorage.setItem("token", tokenData);
       localStorage.setItem("user", JSON.stringify(userData));
-      // console.log("💾 AuthContext: Data saved to localStorage");
 
       setToken(tokenData);
       setUser(userData);
-      // console.log("✅ AuthContext: State updated successfully");
-    } catch (error) {
-      console.error("❌ AuthContext: Login error:", error);
-      throw error;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Login failed";
+      throw new Error(errorMessage);
     }
   };
 
@@ -107,31 +97,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     role: "admin" | "user",
     adminPasscode?: string
   ): Promise<void> => {
-    const payload: {
-      email: string;
-      password: string;
-      firstName: string;
-      lastName: string;
-      role: "admin" | "user";
-      adminPasscode?: string;
-    } = {
-      email,
-      password,
-      firstName,
-      lastName,
-      role,
-    };
-    if (role === "admin" && adminPasscode) {
-      payload.adminPasscode = adminPasscode;
+    try {
+      const payload: {
+        email: string;
+        password: string;
+        firstName: string;
+        lastName: string;
+        role: "admin" | "user";
+        adminPasscode?: string;
+      } = {
+        email,
+        password,
+        firstName,
+        lastName,
+        role,
+      };
+      if (role === "admin" && adminPasscode) {
+        payload.adminPasscode = adminPasscode;
+      }
+      const response = await authApi.register(payload);
+      const { user: userData, token: tokenData } = response.data.data;
+
+      localStorage.setItem("token", tokenData);
+      localStorage.setItem("user", JSON.stringify(userData));
+
+      setToken(tokenData);
+      setUser(userData);
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Registration failed";
+      throw new Error(errorMessage);
     }
-    const response = await authApi.register(payload);
-    const { user: userData, token: tokenData } = response.data.data;
-
-    localStorage.setItem("token", tokenData);
-    localStorage.setItem("user", JSON.stringify(userData));
-
-    setToken(tokenData);
-    setUser(userData);
   };
 
   const logout = () => {
