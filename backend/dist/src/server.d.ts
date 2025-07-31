@@ -41,7 +41,7 @@
  * - XSS protection via Helmet
  *
  * @author Skill Assessment Team
- * @version 1.0.0
+ * @version 8.1.25
  */
 declare const app: import("express-serve-static-core").Express;
 export default app;

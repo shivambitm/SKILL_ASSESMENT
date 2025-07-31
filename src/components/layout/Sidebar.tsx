@@ -35,7 +35,7 @@ const Sidebar: React.FC = () => {
     { path: "/admin/users", label: "Users", icon: Users },
     { path: "/admin/skills", label: "Add Skills", icon: Settings },
     { path: "/admin/questions", label: "Edit/Delete Skills", icon: Trash2 },
-    { path: "/admin/virtual-rounds", label: "Virtual Rounds", icon: Video },
+    { path: "/admin/virtual-rounds", label: "Virtual Interviews", icon: Video },
     { path: "/admin/ai-chat", label: "AI Assistant", icon: Bot },
     { path: "/admin/reports", label: "Reports", icon: FileText },
   ];

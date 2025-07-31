@@ -42,7 +42,7 @@
  * - XSS protection via Helmet
  *
  * @author Skill Assessment Team
- * @version 1.0.0
+ * @version 8.1.25
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -242,7 +242,7 @@ app.get("/health-diagnostic", (req, res) => {
 app.get("/", (req, res) => {
     res.status(200).json({
         message: "Skill Assessment Portal API",
-        version: "1.0.0",
+        version: "8.1.25",
         endpoints: {
             health: "/health",
             auth: "/api/auth/*",
@@ -302,12 +302,12 @@ const startServer = async () => {
         const io = new socket_io_1.Server(server, {
             cors: {
                 origin: environment_1.CORS_ORIGINS,
-                methods: ["GET", "POST"]
-            }
+                methods: ["GET", "POST"],
+            },
         });
         // Setup meeting socket handlers
         (0, meeting_1.setupMeetingSocket)(io);
-        console.log('✅ Socket.IO server initialized for meetings');
+        console.log("✅ Socket.IO server initialized for meetings");
     }
     catch (error) {
         console.error("Failed to start server:", error);

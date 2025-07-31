@@ -17,6 +17,15 @@ export const connectDB = async () => {
 
     // Enable foreign keys
     db.pragma("foreign_keys = ON");
+    
+    // Production optimizations
+    if (process.env.NODE_ENV === 'production') {
+      db.pragma("journal_mode = WAL");
+      db.pragma("synchronous = NORMAL");
+      db.pragma("cache_size = 10000");
+      db.pragma("temp_store = MEMORY");
+      db.pragma("mmap_size = 268435456");
+    }
 
     // Run migrations
     await runMigrations();
@@ -92,6 +101,8 @@ const runMigrations = async () => {
         last_name TEXT NOT NULL,
         role TEXT DEFAULT 'user' CHECK(role IN ('admin', 'user')),
         is_active BOOLEAN DEFAULT TRUE,
+        deactivated_at TEXT,
+        delete_at TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
@@ -100,6 +111,9 @@ const runMigrations = async () => {
     // Create indexes for users table
     db.exec(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_users_deactivated_at ON users(deactivated_at)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_users_delete_at ON users(delete_at)`);
 
     // Create skills table
     db.exec(`

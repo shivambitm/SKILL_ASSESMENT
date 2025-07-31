@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { toast } from 'react-toastify';
 
 interface GoogleUser {
   id: string;
@@ -31,6 +32,13 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const initializeGoogleAuth = async () => {
     try {
+      if (GOOGLE_CLIENT_ID === 'your-google-client-id') {
+        toast.error('❌ Google Client ID not configured');
+        console.error('Google Client ID not set in environment variables');
+        setIsLoading(false);
+        return;
+      }
+
       await loadGoogleScript();
       
       window.google.accounts.id.initialize({
@@ -45,6 +53,7 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       setIsLoading(false);
     } catch (error) {
+      toast.error('❌ Failed to initialize Google Auth');
       console.error('Failed to initialize Google Auth:', error);
       setIsLoading(false);
     }
@@ -69,6 +78,13 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     try {
       const credential = response.credential;
       
+      if (!credential) {
+        toast.error('❌ No Google credential received');
+        throw new Error('No credential received');
+      }
+
+      toast.info('🔄 Verifying Google account...');
+      
       // Send to backend for verification
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       const backendResponse = await fetch(`${apiUrl}/api/auth/google`, {
@@ -82,6 +98,8 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const data = await backendResponse.json();
       
       if (backendResponse.ok) {
+        toast.success(`✅ Welcome ${data.user.firstName}!`);
+        
         // Store token
         localStorage.setItem('token', data.token);
         
@@ -98,11 +116,17 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       } else {
         // Handle admin passcode requirement
         if (data.requiresAdminPasscode) {
+          toast.warning('🔑 Admin passcode required for admin access');
           return { requiresAdminPasscode: true, userInfo: data.userInfo };
         }
+        
+        // Show specific error from backend
+        toast.error(`❌ ${data.message || 'Authentication failed'}`);
         throw new Error(data.message || 'Authentication failed');
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`❌ Google sign-in failed: ${errorMessage}`);
       console.error('Google sign-in error:', error);
       throw error;
     }
