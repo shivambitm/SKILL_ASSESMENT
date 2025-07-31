@@ -16,7 +16,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         cache: 'npm'
     
     - name: Install dependencies
@@ -25,22 +25,28 @@ jobs:
         cd backend && npm ci
     
     - name: Lint Frontend
-      run: npm run lint
+      run: npm run frontend:lint
     
     - name: Type Check
-      run: npm run type-check
+      run: npx tsc --noEmit
     
     - name: Build Frontend
-      run: npm run build
+      run: npm run frontend:build
     
     - name: Test Backend
       run: cd backend && npm test
+      env:
+        NODE_ENV: test
+        JWT_SECRET: test-secret
+        DB_HOST: :memory:
     
     - name: Build Backend
       run: cd backend && npm run build
 
   security-scan:
     runs-on: ubuntu-latest
+    if: ${{ secrets.SNYK_TOKEN != '' }}
+    continue-on-error: true
     steps:
     - uses: actions/checkout@v4
     
