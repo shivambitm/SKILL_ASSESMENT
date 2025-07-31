@@ -361,7 +361,7 @@ const VirtualRounds: React.FC = () => {
               <Video className="w-10 h-10 text-white" />
             </div>
             <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Virtual Interview Rounds
+              Virtual Interviews
             </h1>
             <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
               Conduct professional video interviews with advanced features and

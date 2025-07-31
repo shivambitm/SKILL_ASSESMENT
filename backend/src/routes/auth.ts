@@ -180,16 +180,21 @@ router.post(
       const { email, password } = req.body;
 
       // Find user
+      console.log("🔍 Login attempt for:", email);
       const [rows] = await pool.execute(
         "SELECT id, email, password, first_name, last_name, role, is_active FROM users WHERE email = ?",
         [email]
       );
 
       const users = rows as any[];
+      console.log("📊 Users found in database:", users.length);
+      
       if (users.length === 0) {
+        console.log("❌ No user found with email:", email);
         return res.status(401).json({
           success: false,
-          message: "Invalid credentials",
+          message: `No account found with email: ${email}`,
+          debug: process.env.NODE_ENV === 'development' ? 'User not found in database' : undefined
         });
       }
 
@@ -204,11 +209,16 @@ router.post(
       }
 
       // Check password
+      console.log("🔑 Validating password for user:", user.id);
       const isPasswordValid = await bcrypt.compare(password, user.password);
+      console.log("✅ Password validation result:", isPasswordValid);
+      
       if (!isPasswordValid) {
+        console.log("❌ Invalid password for user:", email);
         return res.status(401).json({
           success: false,
-          message: "Invalid credentials",
+          message: "Invalid password provided",
+          debug: process.env.NODE_ENV === 'development' ? 'Password does not match' : undefined
         });
       }
 
@@ -724,6 +734,7 @@ router.post("/reset-password", async (req, res) => {
 router.post("/google", async (req, res) => {
   try {
     const { credential, adminPasscode } = req.body;
+    console.log("🔐 Google OAuth request:", { hasCredential: !!credential, hasAdminPasscode: !!adminPasscode });
 
     if (!credential) {
       return res.status(400).json({
@@ -733,10 +744,22 @@ router.post("/google", async (req, res) => {
     }
 
     // Decode Google JWT token (simplified - in production use google-auth-library)
-    const payload = JSON.parse(Buffer.from(credential.split('.')[1], 'base64').toString());
+    let payload;
+    try {
+      payload = JSON.parse(Buffer.from(credential.split('.')[1], 'base64').toString());
+      console.log("✅ JWT payload decoded:", { email: payload.email, name: payload.given_name });
+    } catch (decodeError) {
+      console.error("❌ JWT decode error:", decodeError);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Google credential format",
+      });
+    }
+    
     const { email, given_name, family_name, picture, sub } = payload;
 
     // Check if user exists
+    console.log("🔍 Checking if user exists:", email);
     const [existingUsers] = await pool.execute(
       "SELECT id, email, first_name, last_name, role FROM users WHERE email = ?",
       [email]
@@ -744,10 +767,12 @@ router.post("/google", async (req, res) => {
 
     let user;
     let userRole = "user";
+    console.log("📊 Existing users found:", (existingUsers as any[]).length);
 
     if ((existingUsers as any[]).length > 0) {
       // User exists, log them in
       user = (existingUsers as any[])[0];
+      console.log("✅ Existing user login:", { id: user.id, email: user.email, role: user.role });
     } else {
       // New user, check if they want admin role
       if (adminPasscode) {
@@ -789,6 +814,7 @@ router.post("/google", async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRE || "7d" } as SignOptions
     );
 
+    console.log("✅ Google OAuth successful, sending response");
     res.json({
       success: true,
       message: "Google login successful",
@@ -805,10 +831,297 @@ router.post("/google", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Google auth error:", error);
+    console.error("❌ Google auth error:", error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     res.status(500).json({
       success: false,
-      message: "Google authentication failed",
+      message: `Google authentication failed: ${errorMessage}`,
+      error: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/deactivate:
+ *   post:
+ *     summary: Deactivate user account
+ *     description: Deactivates the current user's account. Account will be deleted after 30 days unless reactivated.
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Account deactivated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     deleteAt:
+ *                       type: string
+ *                       format: date-time
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+
+// Deactivate Account
+router.post("/deactivate", authenticate, async (req: CustomRequest, res) => {
+  try {
+    const userId = req.user!.userId;
+    
+    // Set deactivation date (30 days from now for deletion)
+    const deactivatedAt = new Date();
+    const deleteAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    
+    await pool.execute(
+      "UPDATE users SET is_active = FALSE, deactivated_at = ?, delete_at = ? WHERE id = ?",
+      [deactivatedAt.toISOString(), deleteAt.toISOString(), userId]
+    );
+    
+    res.json({
+      success: true,
+      message: "Account deactivated. You have 30 days to reactivate before deletion.",
+      data: { deleteAt }
+    });
+  } catch (error) {
+    console.error("Deactivate account error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to deactivate account"
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/reactivate:
+ *   post:
+ *     summary: Reactivate deactivated account
+ *     description: Reactivates a deactivated account using email and password verification
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: user@example.com
+ *               password:
+ *                 type: string
+ *                 example: password123
+ *     responses:
+ *       200:
+ *         description: Account reactivated successfully
+ *       401:
+ *         description: Invalid password
+ *       404:
+ *         description: No deactivated account found
+ *       410:
+ *         description: Account permanently deleted
+ */
+
+// Reactivate Account
+router.post("/reactivate", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    // Find deactivated user
+    const [rows] = await pool.execute(
+      "SELECT id, password, delete_at FROM users WHERE email = ? AND is_active = FALSE",
+      [email]
+    );
+    
+    const users = rows as any[];
+    if (users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No deactivated account found with this email"
+      });
+    }
+    
+    const user = users[0];
+    
+    // Check if account is past deletion date
+    if (user.delete_at && new Date() > new Date(user.delete_at)) {
+      return res.status(410).json({
+        success: false,
+        message: "Account has been permanently deleted"
+      });
+    }
+    
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid password"
+      });
+    }
+    
+    // Reactivate account
+    await pool.execute(
+      "UPDATE users SET is_active = TRUE, deactivated_at = NULL, delete_at = NULL WHERE id = ?",
+      [user.id]
+    );
+    
+    res.json({
+      success: true,
+      message: "Account reactivated successfully"
+    });
+  } catch (error) {
+    console.error("Reactivate account error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to reactivate account"
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/admin/deactivated-users:
+ *   get:
+ *     summary: Get all deactivated users (Admin only)
+ *     description: Retrieves a list of all deactivated user accounts with deletion status
+ *     tags: [Auth, Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of deactivated users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     users:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                           email:
+ *                             type: string
+ *                           first_name:
+ *                             type: string
+ *                           last_name:
+ *                             type: string
+ *                           deactivated_at:
+ *                             type: string
+ *                             format: date-time
+ *                           delete_at:
+ *                             type: string
+ *                             format: date-time
+ *       403:
+ *         description: Admin access required
+ */
+
+// Admin: Get Deactivated Users
+router.get("/admin/deactivated-users", authenticate, async (req: CustomRequest, res) => {
+  try {
+    // Check if user is admin
+    if (req.user!.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: "Admin access required"
+      });
+    }
+    
+    const [rows] = await pool.execute(
+      "SELECT id, email, first_name, last_name, deactivated_at, delete_at FROM users WHERE is_active = FALSE ORDER BY deactivated_at DESC"
+    );
+    
+    res.json({
+      success: true,
+      data: { users: rows }
+    });
+  } catch (error) {
+    console.error("Get deactivated users error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get deactivated users"
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/admin/reactivate-user:
+ *   post:
+ *     summary: Force reactivate user account (Admin only)
+ *     description: Allows admin to reactivate any deactivated user account without password verification
+ *     tags: [Auth, Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *             properties:
+ *               userId:
+ *                 type: integer
+ *                 example: 123
+ *     responses:
+ *       200:
+ *         description: User reactivated successfully
+ *       403:
+ *         description: Admin access required
+ */
+
+// Admin: Force Reactivate User
+router.post("/admin/reactivate-user", authenticate, async (req: CustomRequest, res) => {
+  try {
+    // Check if user is admin
+    if (req.user!.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: "Admin access required"
+      });
+    }
+    
+    const { userId } = req.body;
+    
+    await pool.execute(
+      "UPDATE users SET is_active = TRUE, deactivated_at = NULL, delete_at = NULL WHERE id = ?",
+      [userId]
+    );
+    
+    res.json({
+      success: true,
+      message: "User account reactivated successfully"
+    });
+  } catch (error) {
+    console.error("Admin reactivate user error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to reactivate user"
     });
   }
 });

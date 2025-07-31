@@ -2,8 +2,10 @@ import React, { useEffect, useState } from "react";
 import Card from "../../components/common/Card";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ErrorMessage from "../../components/common/ErrorMessage";
+import DeactivatedUsers from "../../components/admin/DeactivatedUsers";
 import { useToast } from "../../contexts/ToastContext";
 import { adminApi } from "../../services/api";
+import { Users, UserX } from "lucide-react";
 
 interface User {
   id: number;
@@ -20,6 +22,7 @@ const AdminUsers: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'active' | 'deactivated'>('active');
 
   useEffect(() => {
     console.debug("[AdminUsers] useEffect: fetching all user reports");
@@ -45,8 +48,37 @@ const AdminUsers: React.FC = () => {
   }, []);
 
   return (
-    <Card>
-      <h2 className="text-2xl font-bold mb-4">All Users</h2>
+    <div className="space-y-6">
+      {/* Tab Navigation */}
+      <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+        <button
+          onClick={() => setActiveTab('active')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
+            activeTab === 'active'
+              ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          Active Users
+        </button>
+        <button
+          onClick={() => setActiveTab('deactivated')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
+            activeTab === 'deactivated'
+              ? 'bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 shadow-sm'
+              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+          }`}
+        >
+          <UserX className="w-4 h-4" />
+          Deactivated Users
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'active' ? (
+        <Card>
+          <h2 className="text-2xl font-bold mb-4">Active Users</h2>
       {loading && <LoadingSpinner />}
       {error && <ErrorMessage message={error} />}
       {!loading && !error && (
@@ -93,7 +125,11 @@ const AdminUsers: React.FC = () => {
           </table>
         </div>
       )}
-    </Card>
+        </Card>
+      ) : (
+        <DeactivatedUsers />
+      )}
+    </div>
   );
 };
 

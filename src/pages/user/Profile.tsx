@@ -7,7 +7,7 @@ import Button from "../../components/common/Button";
 import PasswordInput from "../../components/common/PasswordInput";
 import ErrorMessage from "../../components/common/ErrorMessage";
 import SuccessMessage from "../../components/common/SuccessMessage";
-import { User, Mail, Shield, Edit, Save, X } from "lucide-react";
+import { User, Mail, Shield, Edit, Save, X, UserX, AlertTriangle } from "lucide-react";
 
 const Profile: React.FC = () => {
   const { user, updateUser } = useAuth();
@@ -32,6 +32,7 @@ const Profile: React.FC = () => {
   });
 
   const [userReport, setUserReport] = useState<any>(null);
+  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -135,6 +136,33 @@ const Profile: React.FC = () => {
     };
     fetchStats();
   }, [user]);
+
+  const handleDeactivateAccount = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/deactivate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        showSuccess('Account deactivated. You have 30 days to reactivate.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/';
+      } else {
+        showError(data.message || 'Failed to deactivate account');
+      }
+    } catch (error) {
+      showError('Failed to deactivate account');
+    } finally {
+      setLoading(false);
+      setShowDeactivateModal(false);
+    }
+  };
 
   if (!user) {
     return (
@@ -445,6 +473,80 @@ const Profile: React.FC = () => {
           )}
         </div>
       </Card>
+
+      {/* Account Deactivation Card */}
+      <Card>
+        <div className="p-6">
+          <h2 className="text-xl font-semibold mb-4 text-red-600 flex items-center gap-2">
+            <UserX className="w-5 h-5" />
+            Danger Zone
+          </h2>
+          <div className="border border-red-200 rounded-lg p-4 bg-red-50 dark:bg-red-900/10">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="font-medium text-red-800 dark:text-red-400 mb-2">
+                  Deactivate Account
+                </h3>
+                <p className="text-sm text-red-600 dark:text-red-300 mb-4">
+                  Deactivating your account will:
+                </p>
+                <ul className="text-sm text-red-600 dark:text-red-300 space-y-1 mb-4">
+                  <li>• Block access to your account immediately</li>
+                  <li>• Hide your quiz results and profile</li>
+                  <li>• Give you 30 days to reactivate before permanent deletion</li>
+                  <li>• Allow reactivation with email and password</li>
+                </ul>
+              </div>
+              <Button
+                onClick={() => setShowDeactivateModal(true)}
+                variant="secondary"
+                className="bg-red-500 hover:bg-red-600 text-white border-red-500 hover:border-red-600"
+              >
+                <UserX className="w-4 h-4 mr-2" />
+                Deactivate Account
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Deactivate Confirmation Modal */}
+      {showDeactivateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <AlertTriangle className="w-6 h-6 text-red-500" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Confirm Account Deactivation
+              </h3>
+            </div>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              Are you sure you want to deactivate your account? This action will:
+            </p>
+            <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1 mb-6">
+              <li>• Block immediate access to your account</li>
+              <li>• Start a 30-day countdown for permanent deletion</li>
+              <li>• Allow reactivation within 30 days</li>
+            </ul>
+            <div className="flex gap-3">
+              <Button
+                onClick={handleDeactivateAccount}
+                loading={loading}
+                className="bg-red-500 hover:bg-red-600 text-white flex-1"
+              >
+                Yes, Deactivate Account
+              </Button>
+              <Button
+                onClick={() => setShowDeactivateModal(false)}
+                variant="secondary"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Account Statistics (Optional) */}
       {user.role !== "admin" && (
