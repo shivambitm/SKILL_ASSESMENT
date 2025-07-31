@@ -25,7 +25,7 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-rate-limit": "^6.10.0",
-    "helmet": "^7.0.0",
+    "helmet": "^8.1.0",
     "joi": "^17.9.2",
     "jsonwebtoken": "^9.0.2",
     "jspdf": "^3.0.1",
