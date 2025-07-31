@@ -6,7 +6,7 @@ const backendUrl = process.env.VITE_API_URL || "http://localhost:5000";
 export default defineConfig({
   root: ".",
   plugins: [react()],
-  base: "./",
+  base: "/",
   build: {
     rollupOptions: {
       input: "index.html",

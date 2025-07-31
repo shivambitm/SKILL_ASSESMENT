@@ -102,9 +102,7 @@ router.post("/register", async (req, res) => {
         if (!jwtSecret) {
             throw new Error("JWT_SECRET is not defined");
         }
-        const token = jsonwebtoken_1.default.sign({ userId, email, role: userRole }, jwtSecret, {
-            expiresIn: process.env.JWT_EXPIRE || "7d",
-        });
+        const token = jsonwebtoken_1.default.sign({ userId, email, role: userRole }, jwtSecret, { expiresIn: process.env.JWT_EXPIRE || "7d" });
         res.status(201).json({
             success: true,
             message: "User registered successfully",
@@ -599,6 +597,80 @@ router.post("/reset-password", async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to reset password",
+        });
+    }
+});
+// Google OAuth Login
+router.post("/google", async (req, res) => {
+    try {
+        const { credential, adminPasscode } = req.body;
+        if (!credential) {
+            return res.status(400).json({
+                success: false,
+                message: "Google credential is required",
+            });
+        }
+        // Decode Google JWT token (simplified - in production use google-auth-library)
+        const payload = JSON.parse(Buffer.from(credential.split('.')[1], 'base64').toString());
+        const { email, given_name, family_name, picture, sub } = payload;
+        // Check if user exists
+        const [existingUsers] = await database_1.pool.execute("SELECT id, email, first_name, last_name, role FROM users WHERE email = ?", [email]);
+        let user;
+        let userRole = "user";
+        if (existingUsers.length > 0) {
+            // User exists, log them in
+            user = existingUsers[0];
+        }
+        else {
+            // New user, check if they want admin role
+            if (adminPasscode) {
+                if (adminPasscode !== process.env.ADMIN_PASSCODE) {
+                    return res.status(400).json({
+                        success: false,
+                        message: "Invalid admin passcode",
+                        requiresAdminPasscode: true,
+                        userInfo: { email, firstName: given_name, lastName: family_name, picture }
+                    });
+                }
+                userRole = "admin";
+            }
+            // Create new user
+            const [result] = await database_1.pool.execute("INSERT INTO users (email, password, first_name, last_name, role) VALUES (?, ?, ?, ?, ?)", [email, 'google_oauth', given_name, family_name, userRole]);
+            user = {
+                id: result.lastInsertRowid,
+                email,
+                first_name: given_name,
+                last_name: family_name,
+                role: userRole
+            };
+        }
+        // Generate JWT token
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+            throw new Error("JWT_SECRET is not defined");
+        }
+        const token = jsonwebtoken_1.default.sign({ userId: user.id, email: user.email, role: user.role }, jwtSecret, { expiresIn: process.env.JWT_EXPIRE || "7d" });
+        res.json({
+            success: true,
+            message: "Google login successful",
+            data: {
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    firstName: user.first_name,
+                    lastName: user.last_name,
+                    role: user.role,
+                    picture
+                },
+                token,
+            },
+        });
+    }
+    catch (error) {
+        console.error("Google auth error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Google authentication failed",
         });
     }
 });

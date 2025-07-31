@@ -411,3 +411,28 @@ export const importApi = {
   importSeedQuestion: (question: Question) =>
     api.post("/admin/import-seed-question", question),
 };
+
+// AI API
+export const aiApi = {
+  // Chat functionality
+  chat: (data: { message: string; context?: string; sessionId?: number }) =>
+    api.post("/ai/chat", data),
+  
+  getSessions: () => api.get("/ai/sessions"),
+  
+  createSession: (title: string) =>
+    api.post("/ai/sessions", { title }),
+  
+  getSessionMessages: (sessionId: number) =>
+    api.get(`/ai/sessions/${sessionId}/messages`),
+  
+  deleteSession: (sessionId: number) =>
+    api.delete(`/ai/sessions/${sessionId}`),
+  
+  // AI Questions generation
+  generateQuestions: (data: { skillId: number; difficulty?: string; count?: number }) =>
+    api.post("/ai/questions/generate", data),
+  
+  previewQuestions: (data: { skillName: string; difficulty?: string; count?: number }) =>
+    api.post("/ai/questions/preview", data),
+};

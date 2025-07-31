@@ -49,6 +49,7 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
+import { Server } from "socket.io";
 import { connectDB } from "./config/database";
 import { connectRedis } from "./config/redis";
 import { errorHandler } from "./middleware/errorHandler";
@@ -74,6 +75,7 @@ import adminUsersRouter from "./routes/adminUsers";
 import notificationsRoutes from "./routes/notifications";
 import adminSeedMergeRouter from "./routes/adminSeedMerge";
 import importSeedQuestionRouter from "./routes/importSeedQuestion";
+import meetingRoutes, { setupMeetingSocket } from "./routes/meeting";
 
 // Swagger API docs
 import { setupSwagger } from "./swagger";
@@ -248,6 +250,12 @@ app.use("/api/questions", questionRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/reports", reportsRouter);
 
+// AI functionality routes
+import aiChatRoutes from "./routes/ai-chat";
+import aiQuestionsRoutes from "./routes/aiQuestions";
+app.use("/api/ai", aiChatRoutes);
+app.use("/api/ai/questions", aiQuestionsRoutes);
+
 // Mount reports router for admin dashboard analytics
 app.use("/api/reports", reportsRouter);
 app.use("/api/admin", adminReportsRoutes);
@@ -261,6 +269,7 @@ app.use("/api/admin", importSeedQuestionRouter);
 app.use("/api", notificationsRoutes);
 import userSkillUsageRouter from "./routes/userSkillUsage";
 app.use("/api/reports", userSkillUsageRouter);
+app.use("/api/meeting", meetingRoutes);
 console.log("All routes mounted successfully");
 
 // Error handling middleware
@@ -276,7 +285,7 @@ const startServer = async () => {
     await connectDB();
     await connectRedis();
 
-    app.listen(port, "0.0.0.0", () => {
+    const server = app.listen(port, "0.0.0.0", () => {
       console.log(`The Server is running on port ${port}`);
       console.log(`Environment: ${NODE_ENV}`);
       console.log(
@@ -285,6 +294,19 @@ const startServer = async () => {
         }`
       );
     });
+    
+    // Setup Socket.IO for real-time meeting functionality
+    const io = new Server(server, {
+      cors: {
+        origin: CORS_ORIGINS,
+        methods: ["GET", "POST"]
+      }
+    });
+    
+    // Setup meeting socket handlers
+    setupMeetingSocket(io);
+    console.log('✅ Socket.IO server initialized for meetings');
+    
   } catch (error) {
     console.error("Failed to start server:", error);
     process.exit(1);

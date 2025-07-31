@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { ToastProvider } from "./contexts/ToastContext";
+import { GoogleAuthProvider } from "./contexts/GoogleAuthContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import Layout from "./components/layout/Layout";
 
@@ -25,6 +26,7 @@ import QuizDetailPage from "./pages/user/QuizDetailPage";
 import Leaderboard from "./pages/user/Leaderboard";
 import Profile from "./pages/user/Profile";
 import PublicProfile from "./pages/user/PublicProfile";
+import JoinMeeting from "./pages/JoinMeeting";
 import NotFound from "./pages/NotFound";
 
 // Create a client
@@ -46,13 +48,15 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <ToastProvider>
-          <AuthProvider>
-            <Router>
+          <GoogleAuthProvider>
+            <AuthProvider>
+              <Router>
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/join/:meetingId" element={<JoinMeeting />} />
 
               {/* Protected routes */}
               <Route
@@ -125,6 +129,30 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="admin/virtual-rounds"
+                  element={
+                    <ProtectedRoute requiredRole="admin">
+                      <React.Suspense fallback={<div>Loading...</div>}>
+                        {React.createElement(
+                          lazy(() => import("./components/admin/VirtualRounds"))
+                        )}
+                      </React.Suspense>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/ai-chat"
+                  element={
+                    <ProtectedRoute requiredRole="admin">
+                      <React.Suspense fallback={<div>Loading...</div>}>
+                        {React.createElement(
+                          lazy(() => import("./components/admin/AIChat"))
+                        )}
+                      </React.Suspense>
+                    </ProtectedRoute>
+                  }
+                />
                 
                 {/* Catch-all for any unmatched routes inside protected area */}
                 <Route path="*" element={<NotFound />} />
@@ -133,8 +161,9 @@ function App() {
               {/* Final catch-all for completely unmatched routes */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-            </Router>
-          </AuthProvider>
+              </Router>
+            </AuthProvider>
+          </GoogleAuthProvider>
         </ToastProvider>
       </ThemeProvider>
     </QueryClientProvider>
