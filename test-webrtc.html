@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebRTC Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        video { width: 300px; height: 200px; border: 1px solid #ccc; margin: 10px; }
+        button { padding: 10px 20px; margin: 5px; }
+        .container { display: flex; flex-wrap: wrap; }
+        .controls { margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>WebRTC Meeting Test</h1>
+    
+    <div class="controls">
+        <input type="text" id="meetingId" placeholder="Meeting ID" value="TEST123">
+        <input type="text" id="userName" placeholder="Your Name" value="Test User">
+        <button onclick="joinMeeting()">Join Meeting</button>
+        <button onclick="leaveMeeting()">Leave Meeting</button>
+    </div>
+    
+    <div class="container">
+        <div>
+            <h3>Local Video</h3>
+            <video id="localVideo" autoplay muted></video>
+        </div>
+        <div>
+            <h3>Remote Video</h3>
+            <video id="remoteVideo" autoplay></video>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <button onclick="toggleVideo()">Toggle Video</button>
+        <button onclick="toggleAudio()">Toggle Audio</button>
+    </div>
+    
+    <div id="status"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        let socket;
+        let localStream;
+        let peerConnection;
+        let videoEnabled = true;
+        let audioEnabled = true;
+        
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const status = document.getElementById('status');
+        
+        const iceServers = [
+            { urls: 'stun:stun.l.google.com:19302' }
+        ];
+        
+        function updateStatus(message) {
+            status.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+        }
+        
+        async function joinMeeting() {
+            const meetingId = document.getElementById('meetingId').value;
+            const userName = document.getElementById('userName').value;
+            
+            if (!meetingId || !userName) {
+                alert('Please enter meeting ID and name');
+                return;
+            }
+            
+            try {
+                // Connect to Socket.IO server
+                socket = io('http://localhost:5000');
+                
+                // Get user media
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: true
+                });
+                
+                localVideo.srcObject = localStream;
+                updateStatus('Got local stream');
+                
+                // Setup socket listeners
+                socket.on('meeting-joined', (data) => {
+                    updateStatus('Joined meeting with ' + data.participants.length + ' participants');
+                });
+                
+                socket.on('user-joined', (data) => {
+                    updateStatus('User joined: ' + data.participant.name);
+                    createPeerConnection(data.participant.id);
+                });
+                
+                socket.on('user-left', (data) => {
+                    updateStatus('User left: ' + data.participantName);
+                });
+                
+                socket.on('offer', async (data) => {
+                    updateStatus('Received offer from ' + data.senderId);
+                    await handleOffer(data.offer, data.senderId);
+                });
+                
+                socket.on('answer', async (data) => {
+                    updateStatus('Received answer from ' + data.senderId);
+                    await handleAnswer(data.answer);
+                });
+                
+                socket.on('ice-candidate', async (data) => {
+                    await handleIceCandidate(data.candidate);
+                });
+                
+                // Join the meeting
+                socket.emit('join-meeting', {
+                    meetingId,
+                    userInfo: {
+                        name: userName,
+                        isHost: false,
+                        videoEnabled: true,
+                        audioEnabled: true
+                    }
+                });
+                
+            } catch (error) {
+                updateStatus('Error: ' + error.message);
+            }
+        }
+        
+        function createPeerConnection(participantId) {
+            peerConnection = new RTCPeerConnection({ iceServers });
+            
+            // Add local stream tracks
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+            
+            // Handle remote stream
+            peerConnection.ontrack = (event) => {
+                updateStatus('Received remote stream');
+                remoteVideo.srcObject = event.streams[0];
+            };
+            
+            // Handle ICE candidates
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate && socket) {
+                    socket.emit('ice-candidate', {
+                        meetingId: document.getElementById('meetingId').value,
+                        candidate: event.candidate,
+                        targetId: participantId
+                    });
+                }
+            };
+            
+            // Create offer
+            createOffer(participantId);
+        }
+        
+        async function createOffer(participantId) {
+            try {
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                
+                socket.emit('offer', {
+                    meetingId: document.getElementById('meetingId').value,
+                    offer,
+                    targetId: participantId
+                });
+                
+                updateStatus('Sent offer to ' + participantId);
+            } catch (error) {
+                updateStatus('Error creating offer: ' + error.message);
+            }
+        }
+        
+        async function handleOffer(offer, senderId) {
+            try {
+                if (!peerConnection) {
+                    createPeerConnection(senderId);
+                }
+                
+                await peerConnection.setRemoteDescription(offer);
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                
+                socket.emit('answer', {
+                    meetingId: document.getElementById('meetingId').value,
+                    answer,
+                    targetId: senderId
+                });
+                
+                updateStatus('Sent answer to ' + senderId);
+            } catch (error) {
+                updateStatus('Error handling offer: ' + error.message);
+            }
+        }
+        
+        async function handleAnswer(answer) {
+            try {
+                await peerConnection.setRemoteDescription(answer);
+                updateStatus('Set remote description from answer');
+            } catch (error) {
+                updateStatus('Error handling answer: ' + error.message);
+            }
+        }
+        
+        async function handleIceCandidate(candidate) {
+            try {
+                await peerConnection.addIceCandidate(candidate);
+                updateStatus('Added ICE candidate');
+            } catch (error) {
+                updateStatus('Error adding ICE candidate: ' + error.message);
+            }
+        }
+        
+        function toggleVideo() {
+            if (localStream) {
+                const videoTrack = localStream.getVideoTracks()[0];
+                if (videoTrack) {
+                    videoEnabled = !videoEnabled;
+                    videoTrack.enabled = videoEnabled;
+                    updateStatus('Video ' + (videoEnabled ? 'enabled' : 'disabled'));
+                }
+            }
+        }
+        
+        function toggleAudio() {
+            if (localStream) {
+                const audioTrack = localStream.getAudioTracks()[0];
+                if (audioTrack) {
+                    audioEnabled = !audioEnabled;
+                    audioTrack.enabled = audioEnabled;
+                    updateStatus('Audio ' + (audioEnabled ? 'enabled' : 'disabled'));
+                }
+            }
+        }
+        
+        function leaveMeeting() {
+            if (socket) {
+                socket.emit('leave-meeting', {
+                    meetingId: document.getElementById('meetingId').value
+                });
+                socket.disconnect();
+            }
+            
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            
+            if (peerConnection) {
+                peerConnection.close();
+            }
+            
+            localVideo.srcObject = null;
+            remoteVideo.srcObject = null;
+            updateStatus('Left meeting');
+        }
+    </script>
+</body>
+</html>
