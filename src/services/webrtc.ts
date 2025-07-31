@@ -47,13 +47,15 @@ class WebRTCService {
   ];
 
   connect() {
-    const serverUrl = import.meta.env.PROD 
-      ? 'https://skill-assesment-1.onrender.com'
+    const serverUrl = import.meta.env.NODE_ENV === 'production'
+      ? 'https://api.skills.shivastra.in'
       : 'http://localhost:5000';
     
     console.log('Connecting to WebRTC server:', serverUrl);
     this.socket = io(serverUrl, {
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      timeout: 20000,
+      forceNew: true
     });
     this.setupSocketListeners();
   }

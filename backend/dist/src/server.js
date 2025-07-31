@@ -44,6 +44,39 @@
  * @author Skill Assessment Team
  * @version 1.0.0
  */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -53,6 +86,7 @@ const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const socket_io_1 = require("socket.io");
 const database_1 = require("./config/database");
 const redis_1 = require("./config/redis");
 const errorHandler_1 = require("./middleware/errorHandler");
@@ -72,6 +106,7 @@ const adminUsers_1 = __importDefault(require("./routes/adminUsers"));
 const notifications_1 = __importDefault(require("./routes/notifications"));
 const adminSeedMerge_1 = __importDefault(require("./routes/adminSeedMerge"));
 const importSeedQuestion_1 = __importDefault(require("./routes/importSeedQuestion"));
+const meeting_1 = __importStar(require("./routes/meeting"));
 // Swagger API docs
 const swagger_1 = require("./swagger");
 // Load environment variables
@@ -228,6 +263,11 @@ app.use("/api/skills", skills_1.default);
 app.use("/api/questions", questions_1.default);
 app.use("/api/quiz", quiz_1.default);
 app.use("/api/reports", reports_1.default);
+// AI functionality routes
+const ai_chat_1 = __importDefault(require("./routes/ai-chat"));
+const aiQuestions_1 = __importDefault(require("./routes/aiQuestions"));
+app.use("/api/ai", ai_chat_1.default);
+app.use("/api/ai/questions", aiQuestions_1.default);
 // Mount reports router for admin dashboard analytics
 app.use("/api/reports", reports_1.default);
 app.use("/api/admin", adminReports_1.default);
@@ -241,6 +281,7 @@ app.use("/api/admin", importSeedQuestion_1.default);
 app.use("/api", notifications_1.default);
 const userSkillUsage_1 = __importDefault(require("./routes/userSkillUsage"));
 app.use("/api/reports", userSkillUsage_1.default);
+app.use("/api/meeting", meeting_1.default);
 console.log("All routes mounted successfully");
 // Error handling middleware
 app.use(notFound_1.notFound);
@@ -252,11 +293,21 @@ const startServer = async () => {
     try {
         await (0, database_1.connectDB)();
         await (0, redis_1.connectRedis)();
-        app.listen(port, "0.0.0.0", () => {
+        const server = app.listen(port, "0.0.0.0", () => {
             console.log(`The Server is running on port ${port}`);
             console.log(`Environment: ${environment_1.NODE_ENV}`);
             console.log(`Rate limiting: ${environment_1.isDevelopment ? "Relaxed (Development)" : "Strict (Production)"}`);
         });
+        // Setup Socket.IO for real-time meeting functionality
+        const io = new socket_io_1.Server(server, {
+            cors: {
+                origin: environment_1.CORS_ORIGINS,
+                methods: ["GET", "POST"]
+            }
+        });
+        // Setup meeting socket handlers
+        (0, meeting_1.setupMeetingSocket)(io);
+        console.log('✅ Socket.IO server initialized for meetings');
     }
     catch (error) {
         console.error("Failed to start server:", error);

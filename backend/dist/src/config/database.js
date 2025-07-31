@@ -52,6 +52,30 @@ const runMigrations = async () => {
     // Create index for password_reset_otps
     db.exec(`CREATE INDEX IF NOT EXISTS idx_password_reset_otps_email ON password_reset_otps(email)`);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_password_reset_otps_otp ON password_reset_otps(otp)`);
+    // Create AI chat tables
+    db.exec(`
+    CREATE TABLE IF NOT EXISTS chat_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      title TEXT NOT NULL DEFAULT 'New Chat',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+    db.exec(`
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id INTEGER NOT NULL,
+      message TEXT NOT NULL,
+      response TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
+    )
+  `);
+    // Create indexes for AI chat tables
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions(user_id)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages(session_id)`);
     try {
         // Create users table
         db.exec(`

@@ -13,7 +13,9 @@
     "seed": "node dist/scripts/seed.js"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@types/better-sqlite3": "^7.6.13",
+    "@types/pg": "^8.15.5",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.2.0",
     "cors": "^2.8.5",
@@ -28,11 +30,14 @@
     "lucide-react": "^0.525.0",
     "mysql2": "^3.6.3",
     "nodemailer": "^7.0.5",
+    "pg": "^8.16.3",
     "recharts": "^3.1.0",
     "redis": "^4.6.8",
+    "socket.io": "^4.8.1",
     "sqlite3": "^5.1.7",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "winston": "^3.17.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

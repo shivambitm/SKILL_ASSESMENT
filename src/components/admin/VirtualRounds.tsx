@@ -434,6 +434,22 @@ const VirtualRounds: React.FC = () => {
         <div className="flex items-center gap-4">
           <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Interview Room</h1>
           <span className="text-sm text-gray-500 dark:text-gray-400">Meeting ID: {meetingId}</span>
+          <button
+            onClick={copyMeetingLink}
+            className={`flex items-center gap-2 px-3 py-1 ${themeStyles.button} text-white rounded-lg text-sm font-medium transition-all hover:scale-105`}
+          >
+            {copied ? (
+              <>
+                <Check className="w-4 h-4" />
+                Copied!
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4" />
+                Share Invite
+              </>
+            )}
+          </button>
         </div>
         <div className="flex items-center gap-4">
           {joinRequests.length > 0 && (
@@ -732,13 +748,19 @@ const VirtualRounds: React.FC = () => {
                   type="text"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMessage();
+                    }
+                  }}
                   placeholder="Type a message..."
-                  className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                  className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <button
                   onClick={sendMessage}
-                  className={`p-2 ${themeStyles.button} text-white rounded-lg`}
+                  disabled={!newMessage.trim()}
+                  className={`p-2 ${themeStyles.button} text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all`}
                 >
                   <MessageSquare className="w-4 h-4" />
                 </button>

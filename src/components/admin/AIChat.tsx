@@ -141,7 +141,9 @@ const AIChat: React.FC = () => {
 
   const createNewSession = async () => {
     try {
-      const response = await aiApi.createSession('New Chat');
+      const now = new Date();
+      const sessionTitle = `Chat ${now.toLocaleDateString()} ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+      const response = await aiApi.createSession(sessionTitle);
       const newSession = response.data.session;
       setSessions(prev => [newSession, ...prev]);
       setCurrentSession(newSession);
@@ -246,10 +248,14 @@ const AIChat: React.FC = () => {
     setInputMessage('');
     setIsLoading(true);
 
-    // Update session title with first message
+    // Update session title with first message and timestamp
     if (messages.length <= 1) {
-      const smartTitle = messageToSend.split(' ').slice(0, 6).join(' ');
-      const updatedSession = { ...currentSession, title: smartTitle.length > 50 ? smartTitle.substring(0, 47) + '...' : smartTitle };
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const smartTitle = messageToSend.split(' ').slice(0, 4).join(' ');
+      const titleWithTime = `${smartTitle.length > 30 ? smartTitle.substring(0, 27) + '...' : smartTitle} - ${timeStr} ${dateStr}`;
+      const updatedSession = { ...currentSession, title: titleWithTime };
       setCurrentSession(updatedSession);
       setSessions(prev => prev.map(s => s.id === currentSession.id ? updatedSession : s));
     }
@@ -320,21 +326,27 @@ const AIChat: React.FC = () => {
     switch (theme) {
       case 'anime':
         return {
-          background: 'bg-gradient-to-br from-pink-100 via-purple-50 to-indigo-100 dark:from-purple-900 dark:via-pink-900 dark:to-indigo-900',
-          sidebar: 'bg-white/90 dark:bg-gray-800/90 backdrop-blur-md border-pink-200 dark:border-pink-800',
-          header: 'bg-white/90 dark:bg-gray-800/90 backdrop-blur-md border-pink-200 dark:border-pink-800',
+          background: 'bg-gradient-to-br from-purple-900 via-pink-900 to-indigo-900',
+          sidebar: 'bg-gray-900/95 backdrop-blur-md border-pink-500/30',
+          header: 'bg-gray-900/95 backdrop-blur-md border-pink-500/30',
           userMessage: 'bg-gradient-to-r from-pink-500 to-purple-600 text-white',
-          aiMessage: 'bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-pink-200 dark:border-pink-700',
-          button: 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700'
+          aiMessage: 'bg-gray-800/90 backdrop-blur-sm border border-pink-500/30 text-white',
+          button: 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700',
+          text: 'text-white',
+          textSecondary: 'text-pink-200',
+          textMuted: 'text-pink-300/70'
         };
       case 'light':
         return {
-          background: 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50',
-          sidebar: 'bg-white border-slate-200 shadow-sm',
-          header: 'bg-white/95 backdrop-blur-sm border-slate-200',
+          background: 'bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50',
+          sidebar: 'bg-white/95 backdrop-blur-sm border-gray-300 shadow-lg',
+          header: 'bg-white/95 backdrop-blur-sm border-gray-300',
           userMessage: 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white',
-          aiMessage: 'bg-white border border-slate-200 shadow-sm',
-          button: 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800'
+          aiMessage: 'bg-white/90 border border-gray-300 shadow-sm text-gray-900',
+          button: 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800',
+          text: 'text-gray-900',
+          textSecondary: 'text-gray-700',
+          textMuted: 'text-gray-600'
         };
       case 'premium':
       default:
@@ -344,7 +356,10 @@ const AIChat: React.FC = () => {
           header: 'bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-gray-200 dark:border-gray-700',
           userMessage: 'bg-gradient-to-r from-blue-500 to-purple-600 text-white',
           aiMessage: 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700',
-          button: 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'
+          button: 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700',
+          text: 'text-gray-900 dark:text-white',
+          textSecondary: 'text-gray-700 dark:text-gray-300',
+          textMuted: 'text-gray-600 dark:text-gray-400'
         };
     }
   };
@@ -408,11 +423,11 @@ const AIChat: React.FC = () => {
               >
                 <MessageSquare className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  <p className={`text-sm font-medium ${themeStyles.text} truncate`}>
                     {session.title}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                    {formatDate(session.created_at)}
+                  <p className={`text-xs ${themeStyles.textMuted} truncate`}>
+                    {session.message_count || 0} messages
                   </p>
                 </div>
                 <button
@@ -442,25 +457,25 @@ const AIChat: React.FC = () => {
               <Bot className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">AI Assistant</h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Powered by Google Gemini</p>
+              <h1 className={`text-xl font-bold ${themeStyles.text}`}>AI Assistant</h1>
+              <p className={`text-sm ${themeStyles.textMuted}`}>Powered by skills.shivastra.in</p>
             </div>
           </div>
         </div>
 
         {/* Quick Prompts */}
         {messages.length <= 1 && (
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">Quick actions:</p>
+          <div className={`p-4 border-b ${theme === 'anime' ? 'border-pink-500/30' : theme === 'light' ? 'border-gray-300' : 'border-gray-200 dark:border-gray-700'}`}>
+            <p className={`text-sm ${themeStyles.textMuted} mb-3`}>Quick actions:</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {quickPrompts.map((prompt, index) => (
                 <button
                   key={index}
                   onClick={() => setInputMessage(prompt.prompt)}
-                  className={`flex items-center gap-2 p-3 text-left ${themeStyles.aiMessage} rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors`}
+                  className={`flex items-center gap-2 p-3 text-left ${themeStyles.aiMessage} rounded-lg hover:opacity-80 transition-colors`}
                 >
                   <prompt.icon className="w-4 h-4 text-blue-500" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{prompt.text}</span>
+                  <span className={`text-sm ${themeStyles.textSecondary}`}>{prompt.text}</span>
                 </button>
               ))}
             </div>
@@ -484,7 +499,7 @@ const AIChat: React.FC = () => {
                 <div
                   className={`p-4 rounded-2xl ${
                     message.isUser ? themeStyles.userMessage : themeStyles.aiMessage
-                  } text-gray-900 dark:text-white`}
+                  }`}
                 >
                   <div className="whitespace-pre-wrap text-sm leading-relaxed">
                     {message.isStreaming ? streamingText : message.text}
@@ -493,7 +508,7 @@ const AIChat: React.FC = () => {
                     )}
                   </div>
                   <div className={`text-xs mt-2 ${
-                    message.isUser ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
+                    message.isUser ? 'text-blue-100' : themeStyles.textMuted
                   }`}>
                     {formatDateTime(message.timestamp)}
                   </div>
@@ -503,21 +518,21 @@ const AIChat: React.FC = () => {
                 {!message.isUser && !message.isStreaming && (
                   <button
                     onClick={() => copyToClipboard(message.text, message.id)}
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-all"
+                    className={`absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 ${theme === 'anime' ? 'bg-gray-700 hover:bg-gray-600' : theme === 'light' ? 'bg-gray-100 hover:bg-gray-200' : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'} rounded-md transition-all`}
                     title="Copy response"
                   >
                     {copiedMessageId === message.id ? (
                       <Check className="w-3 h-3 text-green-600" />
                     ) : (
-                      <Copy className="w-3 h-3 text-gray-600 dark:text-gray-400" />
+                      <Copy className={`w-3 h-3 ${themeStyles.textMuted}`} />
                     )}
                   </button>
                 )}
               </div>
 
               {message.isUser && (
-                <div className="flex-shrink-0 w-8 h-8 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                <div className={`flex-shrink-0 w-8 h-8 ${theme === 'anime' ? 'bg-pink-500' : theme === 'light' ? 'bg-gray-400' : 'bg-gray-300 dark:bg-gray-600'} rounded-full flex items-center justify-center`}>
+                  <User className="w-4 h-4 text-white" />
                 </div>
               )}
             </div>
@@ -536,7 +551,7 @@ const AIChat: React.FC = () => {
                       <div className={`p-1 rounded-full ${step.completed ? 'bg-green-100 dark:bg-green-900' : 'bg-blue-100 dark:bg-blue-900'}`}>
                         <step.icon className={`w-3 h-3 ${step.completed ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`} />
                       </div>
-                      <span className={`text-sm ${step.completed ? 'text-green-700 dark:text-green-300' : 'text-blue-700 dark:text-blue-300'}`}>
+                      <span className={`text-sm ${step.completed ? (theme === 'anime' ? 'text-green-300' : theme === 'light' ? 'text-green-700' : 'text-green-700 dark:text-green-300') : (theme === 'anime' ? 'text-blue-300' : theme === 'light' ? 'text-blue-700' : 'text-blue-700 dark:text-blue-300')}`}>
                         {step.text}
                       </span>
                       {step.completed ? (
@@ -567,7 +582,7 @@ const AIChat: React.FC = () => {
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Ask me anything about skill assessment, quiz creation, or educational content..."
-                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={`w-full p-3 border ${theme === 'anime' ? 'border-pink-500/30 bg-gray-800 text-white placeholder-pink-300/50' : theme === 'light' ? 'border-gray-300 bg-white text-gray-900 placeholder-gray-500' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400'} rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                 rows={1}
                 style={{ minHeight: '44px', maxHeight: '120px' }}
                 disabled={isLoading}
