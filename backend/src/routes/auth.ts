@@ -211,7 +211,6 @@ router.post(
       // Check password
       console.log("🔑 Validating password for user:", user.id);
       const isPasswordValid = await bcrypt.compare(password, user.password);
-      console.log("✅ Password validation result:", isPasswordValid);
       
       if (!isPasswordValid) {
         console.log("❌ Invalid password for user:", email);
