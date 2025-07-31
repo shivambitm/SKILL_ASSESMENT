@@ -41,7 +41,7 @@
  * - XSS protection via Helmet
  *
  * @author Skill Assessment Team
- * @version 1.0.0
+ * @version 8.1.25
  */
 
 import express from "express";
@@ -227,7 +227,7 @@ app.get("/health-diagnostic", (req, res) => {
 app.get("/", (req, res) => {
   res.status(200).json({
     message: "Skill Assessment Portal API",
-    version: "1.0.0",
+    version: "8.1.25",
     endpoints: {
       health: "/health",
       auth: "/api/auth/*",
@@ -294,19 +294,18 @@ const startServer = async () => {
         }`
       );
     });
-    
+
     // Setup Socket.IO for real-time meeting functionality
     const io = new Server(server, {
       cors: {
         origin: CORS_ORIGINS,
-        methods: ["GET", "POST"]
-      }
+        methods: ["GET", "POST"],
+      },
     });
-    
+
     // Setup meeting socket handlers
     setupMeetingSocket(io);
-    console.log('✅ Socket.IO server initialized for meetings');
-    
+    console.log("✅ Socket.IO server initialized for meetings");
   } catch (error) {
     console.error("Failed to start server:", error);
     process.exit(1);
