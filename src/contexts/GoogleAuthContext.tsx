@@ -70,7 +70,8 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const credential = response.credential;
       
       // Send to backend for verification
-      const backendResponse = await fetch('http://localhost:5000/api/auth/google', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const backendResponse = await fetch(`${apiUrl}/api/auth/google`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

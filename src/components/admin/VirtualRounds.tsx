@@ -116,7 +116,10 @@ const VirtualRounds: React.FC = () => {
   const startMeeting = async () => {
     try {
       // First create the meeting via API with the current meetingId
-      const response = await fetch('http://localhost:5000/api/meeting/create', {
+      const apiUrl = import.meta.env.NODE_ENV === 'production' 
+        ? 'https://api.skills.shivastra.in'
+        : 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/meeting/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
