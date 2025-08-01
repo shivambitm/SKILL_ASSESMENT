@@ -50,7 +50,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import { Server } from "socket.io";
-import { connectDB } from "./config/database";
+import { connectDB } from "./config/dynamicDatabase";
 import { connectRedis } from "./config/redis";
 import { errorHandler } from "./middleware/errorHandler";
 import { notFound } from "./middleware/notFound";
@@ -103,7 +103,12 @@ if (isDevelopment) {
 }
 
 const app = express();
-app.use(express.static("public")); // Serve static files from the "public" directory
+// Serve static files from the "public" directory if it exists
+try {
+  app.use(express.static("public"));
+} catch (error) {
+  console.log("Public directory not found, skipping static file serving");
+}
 
 // Security middleware
 app.use(helmet());
@@ -237,7 +242,7 @@ app.get("/", (req, res) => {
       quiz: "/api/quiz/*",
       reports: "/api/reports/*",
     },
-    documentation: "Visit /health for server status",
+    documentation: "Visit /api-docs for API documentation",
   });
 });
 

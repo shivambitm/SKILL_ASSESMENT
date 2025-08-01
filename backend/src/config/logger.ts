@@ -19,5 +19,6 @@ if (process.env.NODE_ENV !== 'production') {
     format: winston.format.simple()
   }));
 }
+//basically they are the same, but this one is more complete and has more options
 
 export default logger;

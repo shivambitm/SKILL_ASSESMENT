@@ -9,7 +9,8 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'skill_assessment',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'password',
-  max: 20, // Connection pooling
+  ssl: process.env.DB_HOST?.includes('neon.tech') ? { rejectUnauthorized: false } : false,
+  max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
 });
@@ -38,6 +39,8 @@ const runMigrations = async () => {
         last_name VARCHAR(100) NOT NULL,
         role VARCHAR(20) DEFAULT 'user' CHECK(role IN ('admin', 'user')),
         is_active BOOLEAN DEFAULT TRUE,
+        deactivated_at TIMESTAMP,
+        delete_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -110,10 +113,49 @@ const runMigrations = async () => {
       );
     `);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        message TEXT NOT NULL,
+        is_read BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS chat_sessions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        title VARCHAR(255) NOT NULL DEFAULT 'New Chat',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id SERIAL PRIMARY KEY,
+        session_id INTEGER NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+        message TEXT NOT NULL,
+        response TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     // Create indexes
     await client.query('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active);');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_users_deactivated_at ON users(deactivated_at);');
     await client.query('CREATE INDEX IF NOT EXISTS idx_questions_skill_id ON questions(skill_id);');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_questions_skill_active ON questions(skill_id, is_active);');
     await client.query('CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user_id ON quiz_attempts(user_id);');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_quiz_attempts_completed_at ON quiz_attempts(completed_at);');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_quiz_leaderboard ON quiz_attempts(user_id, completed_at, score_percentage);');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_user_quiz_history ON quiz_attempts(user_id, skill_id, completed_at);');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions(user_id);');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages(session_id);');
 
     console.log('✅ PostgreSQL migrations completed');
   } finally {

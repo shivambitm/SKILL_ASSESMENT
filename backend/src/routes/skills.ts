@@ -1,5 +1,5 @@
 import express from "express";
-import { pool } from "../config/database";
+import { pool } from "../config/dbInterface";
 import { authenticate, authorize } from "../middleware/auth";
 import { validate, skillSchemas } from "../middleware/validation";
 import { cacheGet, cacheSet, cacheDel } from "../config/redis";
@@ -626,7 +626,7 @@ router.post(
       for (const q of questions) {
         console.log("[ADMIN] Inserting question:", q);
         await pool.execute(
-          `INSERT INTO questions (skill_id, question_text, option_a, option_b, option_c, option_d, correct_answer, difficulty, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+          `INSERT INTO questions (skill_id, question_text, option_a, option_b, option_c, option_d, correct_answer, difficulty, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, true)`,
           [
             skillId,
             q.questionText,

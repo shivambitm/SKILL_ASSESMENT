@@ -16,7 +16,12 @@ const options = {
         },
         servers: [
             {
+                url: "https://api.skills.shivastra.in/api",
+                description: "Production server"
+            },
+            {
                 url: "http://localhost:5000/api",
+                description: "Development server"
             },
         ],
         components: {
@@ -34,6 +39,6 @@ const options = {
 };
 const swaggerSpec = (0, swagger_jsdoc_1.default)(options);
 function setupSwagger(app) {
-    app.use("/api/docs", swagger_ui_express_1.default.serve, swagger_ui_express_1.default.setup(swaggerSpec));
+    app.use("/api-docs", swagger_ui_express_1.default.serve, swagger_ui_express_1.default.setup(swaggerSpec));
 }
 //# sourceMappingURL=swagger.js.map

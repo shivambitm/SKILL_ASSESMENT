@@ -30,7 +30,7 @@
  */
 
 import express from "express";
-import { pool } from "../config/database";
+import { pool } from "../config/dbInterface";
 import { authenticate, CustomRequest } from "../middleware/auth";
 import { validate, quizSchemas } from "../middleware/validation";
 

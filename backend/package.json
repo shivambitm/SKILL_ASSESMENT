@@ -14,6 +14,7 @@
     "test:watch": "jest --watch",
     "migrate": "node dist/scripts/migrate.js",
     "seed": "node dist/scripts/seed.js",
+    "seed:postgres": "ts-node scripts/seed-postgres.ts",
     "optimize-db": "node scripts/optimize-database.js",
     "production-setup": "node scripts/production-setup.js"
   },

@@ -129,7 +129,13 @@ if (environment_1.isDevelopment) {
     console.log("Development mode: Rate limiting is relaxed");
 }
 const app = (0, express_1.default)();
-app.use(express_1.default.static("public")); // Serve static files from the "public" directory
+// Serve static files from the "public" directory if it exists
+try {
+    app.use(express_1.default.static("public"));
+}
+catch (error) {
+    console.log("Public directory not found, skipping static file serving");
+}
 // Security middleware
 app.use((0, helmet_1.default)());
 app.set("trust proxy", 1); // <== Add this line near the top
@@ -252,7 +258,7 @@ app.get("/", (req, res) => {
             quiz: "/api/quiz/*",
             reports: "/api/reports/*",
         },
-        documentation: "Visit /health for server status",
+        documentation: "Visit /api-docs for API documentation",
     });
 });
 // API routes

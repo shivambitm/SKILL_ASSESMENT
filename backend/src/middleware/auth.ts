@@ -29,7 +29,7 @@
 
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { pool } from "../config/database";
+import { pool } from "../config/dbInterface";
 
 interface JwtPayload {
   userId: number;

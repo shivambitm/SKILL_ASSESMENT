@@ -2,7 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt, { SignOptions } from "jsonwebtoken";
 import dotenv from "dotenv";
-import { pool } from "../config/database";
+import { pool } from "../config/dbInterface";
 import { validate, authSchemas } from "../middleware/validation";
 import { authenticate, CustomRequest } from "../middleware/auth";
 import { sendOTPEmail } from "../utils/emailService";
@@ -191,10 +191,10 @@ router.post(
       
       if (users.length === 0) {
         console.log("❌ No user found with email:", email);
-        return res.status(401).json({
+        return res.status(404).json({
           success: false,
-          message: `No account found with email: ${email}`,
-          debug: process.env.NODE_ENV === 'development' ? 'User not found in database' : undefined
+          message: `No user exists with email: ${email}. Please check your email or register first.`,
+          errorType: 'USER_NOT_FOUND'
         });
       }
 
@@ -216,8 +216,8 @@ router.post(
         console.log("❌ Invalid password for user:", email);
         return res.status(401).json({
           success: false,
-          message: "Invalid password provided",
-          debug: process.env.NODE_ENV === 'development' ? 'Password does not match' : undefined
+          message: "Incorrect password. Please try again.",
+          errorType: 'INVALID_PASSWORD'
         });
       }
 

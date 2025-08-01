@@ -1,5 +1,5 @@
 import express from "express";
-import { pool } from "../config/database";
+import { pool } from "../config/dbInterface";
 import { authenticate, authorize, CustomRequest } from "../middleware/auth";
 import { cacheGet, cacheSet } from "../config/redis";
 
@@ -14,7 +14,7 @@ router.get(
     try {
       // Recent quiz attempts with user and skill info
       const [recent] = await pool.execute(`
-      SELECT qa.id, u.first_name || ' ' || u.last_name as username, s.name as skill_name, qa.score_percentage as percentage, qa.completed_at as created_at
+      SELECT qa.id, CONCAT(u.first_name, ' ', u.last_name) as username, s.name as skill_name, qa.score_percentage as percentage, qa.completed_at as created_at
       FROM quiz_attempts qa
       JOIN users u ON qa.user_id = u.id
       JOIN skills s ON qa.skill_id = s.id
@@ -34,7 +34,7 @@ router.get(
 
       // Performance trend: last 10 attempts
       const [trend] = await pool.execute(`
-      SELECT u.first_name || ' ' || u.last_name as username, qa.score_percentage as score, qa.completed_at as created_at
+      SELECT CONCAT(u.first_name, ' ', u.last_name) as username, qa.score_percentage as score, qa.completed_at as created_at
       FROM quiz_attempts qa
       JOIN users u ON qa.user_id = u.id
       WHERE qa.completed_at IS NOT NULL
@@ -160,7 +160,7 @@ router.get("/user/:userId", authenticate, async (req: CustomRequest, res) => {
         AVG(score_percentage) as avgScore
        FROM quiz_attempts 
        WHERE user_id = ? AND completed_at IS NOT NULL 
-         AND completed_at >= datetime('now', '-30 days')
+         AND completed_at >= NOW() - INTERVAL '30 days'
        GROUP BY DATE(completed_at)
        ORDER BY date ASC`,
       [userId]
@@ -381,7 +381,7 @@ router.get(
         COUNT(DISTINCT user_id) as active_users,
         AVG(score_percentage) as avg_recent_score
        FROM quiz_attempts 
-       WHERE completed_at >= datetime('now', '-30 days')`
+       WHERE completed_at >= NOW() - INTERVAL '30 days'`
       );
 
       // Get daily activity for the last 14 days
@@ -392,7 +392,7 @@ router.get(
         COUNT(DISTINCT user_id) as unique_users,
         AVG(score_percentage) as avg_score
        FROM quiz_attempts 
-       WHERE completed_at >= datetime('now', '-14 days')
+       WHERE completed_at >= NOW() - INTERVAL '14 days'
        GROUP BY DATE(completed_at)
        ORDER BY date DESC`
       );
@@ -503,9 +503,9 @@ router.get("/leaderboard", authenticate, async (req, res) => {
     // Build date filter (SQLite compatible)
     let dateFilter = "";
     if (period === "week") {
-      dateFilter = "AND qa.completed_at >= datetime('now', '-7 days')";
+      dateFilter = "AND qa.completed_at >= NOW() - INTERVAL '7 days'";
     } else if (period === "month") {
-      dateFilter = "AND qa.completed_at >= datetime('now', '-1 month')";
+      dateFilter = "AND qa.completed_at >= NOW() - INTERVAL '1 month'";
     }
 
     // Build skill filter

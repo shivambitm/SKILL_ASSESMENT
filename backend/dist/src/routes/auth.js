@@ -177,7 +177,6 @@ router.post("/login", (0, validation_1.validate)(validation_1.authSchemas.login)
         // Check password
         console.log("🔑 Validating password for user:", user.id);
         const isPasswordValid = await bcryptjs_1.default.compare(password, user.password);
-        console.log("✅ Password validation result:", isPasswordValid);
         if (!isPasswordValid) {
             console.log("❌ Invalid password for user:", email);
             return res.status(401).json({

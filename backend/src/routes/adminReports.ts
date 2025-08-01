@@ -1,5 +1,5 @@
 import express from "express";
-import { pool } from "../config/database";
+import { pool } from "../config/dbInterface";
 import { authenticate, authorize } from "../middleware/auth";
 
 const router = express.Router();

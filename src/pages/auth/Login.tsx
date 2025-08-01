@@ -66,7 +66,17 @@ const Login: React.FC = () => {
       console.error("❌ Login error:", err);
       console.error("❌ Error response:", err.response?.data);
       const errorMsg = err.response?.data?.message || "Login failed";
-      showError(errorMsg);
+      const errorType = err.response?.data?.errorType;
+      
+      // Show specific toast messages based on error type
+      if (errorType === 'USER_NOT_FOUND') {
+        showError(`❌ No account found with email: ${email}. Please check your email or register first.`);
+      } else if (errorType === 'INVALID_PASSWORD') {
+        showError('❌ Incorrect password. Please try again.');
+      } else {
+        showError(errorMsg);
+      }
+      
       setError(errorMsg);
       setShowErrorModal(true);
     } finally {
