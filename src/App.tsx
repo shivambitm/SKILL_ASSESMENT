@@ -18,6 +18,13 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 
+// Legal pages
+import Privacy from "./pages/legal/Privacy";
+import Terms from "./pages/legal/Terms";
+import Cancellation from "./pages/legal/Cancellation";
+import Delivery from "./pages/legal/Delivery";
+import Policy from "./pages/legal/Policy";
+
 // User pages
 import Dashboard from "./pages/user/Dashboard";
 import QuizPage from "./pages/user/QuizPage";
@@ -57,6 +64,13 @@ function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/join/:meetingId" element={<JoinMeeting />} />
+              
+              {/* Legal pages */}
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/cancellation" element={<Cancellation />} />
+              <Route path="/delivery" element={<Delivery />} />
+              <Route path="/policy" element={<Policy />} />
 
               {/* Protected routes */}
               <Route

@@ -97,22 +97,29 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       const data = await backendResponse.json();
       
-      if (backendResponse.ok) {
-        toast.success(`✅ Welcome ${data.user.firstName}!`);
+      if (backendResponse.ok && data.success) {
+        toast.success(`✅ Welcome ${data.data.user.firstName}!`);
         
-        // Store token
-        localStorage.setItem('token', data.token);
+        // Store token and user data
+        localStorage.setItem('token', data.data.token);
+        localStorage.setItem('user', JSON.stringify(data.data.user));
         
         // Set user data
         setUser({
-          id: data.user.id,
-          email: data.user.email,
-          name: data.user.firstName + ' ' + data.user.lastName,
-          picture: data.user.picture || '',
+          id: data.data.user.id,
+          email: data.data.user.email,
+          name: data.data.user.firstName + ' ' + data.data.user.lastName,
+          picture: data.data.user.picture || '',
         });
 
         setShowPrompt(false);
-        window.location.reload();
+        
+        // Redirect based on role
+        if (data.data.user.role === 'admin') {
+          window.location.href = '/admin/dashboard';
+        } else {
+          window.location.href = '/dashboard';
+        }
       } else {
         // Handle admin passcode requirement
         if (data.requiresAdminPasscode) {
@@ -139,8 +146,8 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           client_id: GOOGLE_CLIENT_ID,
           callback: async (response: any) => {
             try {
-              const result = await handleCredentialResponse(response, adminPasscode);
-              resolve(result);
+              await handleCredentialResponse(response, adminPasscode);
+              resolve(undefined);
             } catch (error) {
               reject(error);
             }
