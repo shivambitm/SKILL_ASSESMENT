@@ -346,6 +346,46 @@ const Login: React.FC = () => {
         </form>
       </div>
       
+      {/* Footer with Policy Links */}
+      <div className="mt-12 text-center">
+        <div className="flex flex-wrap justify-center items-center gap-4 text-sm">
+          <Link 
+            to="/privacy" 
+            className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium"
+          >
+            Privacy
+          </Link>
+          <span className="text-gray-400 dark:text-gray-600">|</span>
+          <Link 
+            to="/terms" 
+            className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium"
+          >
+            Terms
+          </Link>
+          <span className="text-gray-400 dark:text-gray-600">|</span>
+          <Link 
+            to="/cancellation" 
+            className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium"
+          >
+            Cancellation
+          </Link>
+          <br className="sm:hidden" />
+          <Link 
+            to="/delivery" 
+            className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium"
+          >
+            Delivery
+          </Link>
+          <span className="text-gray-400 dark:text-gray-600">|</span>
+          <Link 
+            to="/policy" 
+            className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium"
+          >
+            Policy
+          </Link>
+        </div>
+      </div>
+      
       {/* Admin Passcode Modal */}
       <AdminPasscodeModal
         isOpen={showAdminModal}
