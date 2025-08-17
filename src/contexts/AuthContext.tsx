@@ -1,28 +1,23 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  ReactNode,
-} from "react";
-import { authApi } from "../services/api";
-import type { User } from "../types";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { authApi } from '../services/api';
+import { User } from '../types';
 
 interface AuthContextType {
   user: User | null;
-  token: string | null;
-  login: (email: string, password: string) => Promise<any>;
-  register: (
-    email: string,
-    password: string,
-    firstName: string,
-    lastName: string,
-    role: "admin" | "user",
-    adminPasscode?: string
-  ) => Promise<void>;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   updateUser: (userData: User) => void;
-  loading: boolean;
+}
+
+interface RegisterData {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  role?: 'admin' | 'user';
+  adminPasscode?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,7 +25,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
@@ -41,129 +36,79 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(
-    localStorage.getItem("token")
-  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      const storedToken = localStorage.getItem("token");
-      const storedUser = localStorage.getItem("user");
+    const initAuth = async () => {
+      const token = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
 
-      if (storedToken && storedUser) {
+      if (token && storedUser) {
         try {
-          setToken(storedToken);
           setUser(JSON.parse(storedUser));
-
-          // Verify token is still valid
+          // Optionally verify token with backend
           const response = await authApi.getCurrentUser();
           setUser(response.data.data.user);
         } catch (error) {
-          console.error("Auth initialization error:", error);
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          setToken(null);
+          console.error('Token verification failed:', error);
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
           setUser(null);
         }
       }
       setLoading(false);
     };
 
-    initializeAuth();
+    initAuth();
   }, []);
 
   const login = async (email: string, password: string) => {
     try {
       const response = await authApi.login({ email, password });
+      const { token, user: userData } = response.data.data;
       
-      // Check if OTP verification is required
-      if (response.data.data?.requiresOTP) {
-        return response.data.data; // Return OTP requirement info
-      }
-      
-      // Normal login flow
-      const { user: userData, token: tokenData } = response.data.data;
-
-      localStorage.setItem("token", tokenData);
-      localStorage.setItem("user", JSON.stringify(userData));
-
-      setToken(tokenData);
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
-      
-      return response.data.data;
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || "Login failed";
-      throw new Error(errorMessage);
+    } catch (error) {
+      throw error;
     }
   };
 
-  const register = async (
-    email: string,
-    password: string,
-    firstName: string,
-    lastName: string,
-    role: "admin" | "user",
-    adminPasscode?: string
-  ): Promise<void> => {
+  const register = async (data: RegisterData) => {
     try {
-      const payload: {
-        email: string;
-        password: string;
-        firstName: string;
-        lastName: string;
-        role: "admin" | "user";
-        adminPasscode?: string;
-      } = {
-        email,
-        password,
-        firstName,
-        lastName,
-        role,
-      };
-      if (role === "admin" && adminPasscode) {
-        payload.adminPasscode = adminPasscode;
-      }
-      const response = await authApi.register(payload);
-      const { user: userData, token: tokenData } = response.data.data;
-
-      localStorage.setItem("token", tokenData);
-      localStorage.setItem("user", JSON.stringify(userData));
-
-      setToken(tokenData);
+      const response = await authApi.register({
+        ...data,
+        role: data.role || 'user'
+      });
+      const { token, user: userData } = response.data.data;
+      
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || "Registration failed";
-      throw new Error(errorMessage);
+    } catch (error) {
+      throw error;
     }
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setToken(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setUser(null);
   };
 
   const updateUser = (userData: User) => {
-    localStorage.setItem("user", JSON.stringify(userData));
     setUser(userData);
-    
-    // Also update token if it exists in localStorage
-    const storedToken = localStorage.getItem("token");
-    if (storedToken && storedToken !== token) {
-      setToken(storedToken);
-    }
+    localStorage.setItem('user', JSON.stringify(userData));
   };
 
   const value = {
     user,
-    token,
+    loading,
     login,
     register,
     logout,
     updateUser,
-    loading,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
