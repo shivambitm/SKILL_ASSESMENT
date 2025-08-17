@@ -3,22 +3,20 @@
 // Returns all available skills with: { skillName, count, bestScore } for the user
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
-const database_1 = require("../config/database");
+const models_1 = require("../models");
 const router = (0, express_1.Router)();
 router.get("/user/:userId/skill-usage", async (req, res) => {
     const userId = req.params.userId;
     try {
         // Get all skills
-        const [skillsRaw] = await database_1.pool.execute("SELECT id, name FROM skills");
-        const skills = Array.isArray(skillsRaw)
-            ? skillsRaw
-            : [];
+        const skills = await models_1.Skill.find().select('_id name').lean();
         // Get all quiz attempts for this user
-        const [attemptsRaw] = await database_1.pool.execute("SELECT skill_id, score_percentage FROM quiz_attempts WHERE user_id = ?", [userId]);
-        const attempts = Array.isArray(attemptsRaw) ? attemptsRaw : [];
+        const attempts = await models_1.QuizAttempt.find({ user_id: userId })
+            .select('skill_id score_percentage')
+            .lean();
         // Build stats for each skill
         const skillStats = skills.map((skill) => {
-            const userAttempts = attempts.filter((a) => a.skill_id === skill.id);
+            const userAttempts = attempts.filter((a) => a.skill_id.toString() === skill._id.toString());
             return {
                 skillName: skill.name,
                 count: userAttempts.length,

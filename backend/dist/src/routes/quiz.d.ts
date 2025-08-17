@@ -26,7 +26,7 @@
  * @module QuizRoutes
  * @requires authentication middleware
  * @requires validation middleware
- * @requires database pool for operations
+ * @requires MongoDB models
  */
 declare const router: import("express-serve-static-core").Router;
 export default router;

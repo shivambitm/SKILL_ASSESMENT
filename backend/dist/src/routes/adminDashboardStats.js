@@ -4,20 +4,21 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const database_1 = require("../config/database");
+const models_1 = require("../models");
 const router = express_1.default.Router();
 router.get("/summary", async (req, res) => {
     try {
         // Total users (non-admin, active)
-        const [userRows] = await database_1.pool.execute(`SELECT COUNT(*) as total_users FROM users WHERE is_active = true AND role = 'user'`);
-        const totalUsers = userRows[0]?.total_users || 0;
+        const totalUsers = await models_1.User.countDocuments({ isActive: true, role: 'user' });
         // Total quizzes (all quiz attempts)
-        const [quizRows] = await database_1.pool.execute(`SELECT COUNT(*) as total_quizzes FROM quiz_attempts WHERE completed_at IS NOT NULL`);
-        const totalQuizzes = quizRows[0]?.total_quizzes || 0;
+        const totalQuizzes = await models_1.QuizAttempt.countDocuments({ completed_at: { $ne: null } });
         // Average score (across all quiz attempts)
-        const [scoreRows] = await database_1.pool.execute(`SELECT AVG(score_percentage) as avg_score FROM quiz_attempts WHERE completed_at IS NOT NULL`);
-        const avgScore = scoreRows[0]?.avg_score
-            ? Math.round(scoreRows[0].avg_score * 100) / 100
+        const avgScoreResult = await models_1.QuizAttempt.aggregate([
+            { $match: { completed_at: { $ne: null } } },
+            { $group: { _id: null, avgScore: { $avg: "$score_percentage" } } }
+        ]);
+        const avgScore = avgScoreResult.length > 0
+            ? Math.round(avgScoreResult[0].avgScore * 100) / 100
             : 0;
         res.json({
             totalUsers,
@@ -35,7 +36,7 @@ exports.default = router;
 router.get("/quiz-stats", async (req, res) => {
     try {
         // Get all users' quiz stats, pick 10 random
-        const [rows] = await database_1.pool.execute(`SELECT qa.id, u.first_name, u.last_name, u.username, s.name as skill_name, qa.score, qa.score_percentage, qa.completed_at
+        const [rows] = await pool.execute(`SELECT qa.id, u.first_name, u.last_name, u.username, s.name as skill_name, qa.score, qa.score_percentage, qa.completed_at
        FROM quiz_attempts qa
        JOIN users u ON qa.user_id = u.id
        JOIN skills s ON qa.skill_id = s.id
@@ -53,7 +54,7 @@ router.get("/quiz-stats", async (req, res) => {
 router.get("/recent-quizzes", async (req, res) => {
     try {
         // Check if there is any data
-        const [quizRows] = await database_1.pool.execute("SELECT COUNT(*) as total FROM quiz_attempts");
+        const [quizRows] = await pool.execute("SELECT COUNT(*) as total FROM quiz_attempts");
         const totalQuizzes = quizRows[0]?.total || 0;
         if (totalQuizzes === 0) {
             // Demo random data
@@ -78,7 +79,7 @@ router.get("/recent-quizzes", async (req, res) => {
             return;
         }
         // ...existing code for real data...
-        const [rows] = await database_1.pool.execute(`SELECT qa.id, qa.score, qa.created_at, u.username, u.name, s.name as skill_name, qa.total_questions FROM quiz_attempts qa JOIN users u ON qa.user_id = u.id JOIN skills s ON qa.skill_id = s.id ORDER BY qa.created_at DESC LIMIT 20`);
+        const [rows] = await pool.execute(`SELECT qa.id, qa.score, qa.created_at, u.username, u.name, s.name as skill_name, qa.total_questions FROM quiz_attempts qa JOIN users u ON qa.user_id = u.id JOIN skills s ON qa.skill_id = s.id ORDER BY qa.created_at DESC LIMIT 20`);
         // Add percentage
         const recent = rows.map((r) => ({
             ...r,
@@ -95,7 +96,7 @@ router.get("/recent-quizzes", async (req, res) => {
 router.get("/skill-performance", async (req, res) => {
     try {
         // Check if there is any data
-        const [quizRows] = await database_1.pool.execute("SELECT COUNT(*) as total FROM quiz_attempts");
+        const [quizRows] = await pool.execute("SELECT COUNT(*) as total FROM quiz_attempts");
         const totalQuizzes = quizRows[0]?.total || 0;
         if (totalQuizzes === 0) {
             // Demo random data
@@ -109,7 +110,7 @@ router.get("/skill-performance", async (req, res) => {
             return;
         }
         // ...existing code for real data...
-        const [rows] = await database_1.pool.execute(`SELECT s.id, s.name, COUNT(qa.id) as times_taken FROM skills s LEFT JOIN quiz_attempts qa ON qa.skill_id = s.id GROUP BY s.id, s.name ORDER BY times_taken DESC`);
+        const [rows] = await pool.execute(`SELECT s.id, s.name, COUNT(qa.id) as times_taken FROM skills s LEFT JOIN quiz_attempts qa ON qa.skill_id = s.id GROUP BY s.id, s.name ORDER BY times_taken DESC`);
         res.json({ skills: rows });
     }
     catch (err) {
@@ -121,7 +122,7 @@ router.get("/skill-performance", async (req, res) => {
 router.get("/performance-trend", async (req, res) => {
     try {
         // Check if there is any data
-        const [quizRows] = await database_1.pool.execute("SELECT COUNT(*) as total FROM quiz_attempts");
+        const [quizRows] = await pool.execute("SELECT COUNT(*) as total FROM quiz_attempts");
         const totalQuizzes = quizRows[0]?.total || 0;
         if (totalQuizzes === 0) {
             // Demo random data
@@ -140,7 +141,7 @@ router.get("/performance-trend", async (req, res) => {
         }
         // ...existing code for real data...
         // For demo: last 30 quiz completions by time
-        const [rows] = await database_1.pool.execute(`SELECT qa.created_at, qa.score, u.username FROM quiz_attempts qa JOIN users u ON qa.user_id = u.id ORDER BY qa.created_at DESC LIMIT 30`);
+        const [rows] = await pool.execute(`SELECT qa.created_at, qa.score, u.username FROM quiz_attempts qa JOIN users u ON qa.user_id = u.id ORDER BY qa.created_at DESC LIMIT 30`);
         res.json({ trend: rows });
     }
     catch (err) {
@@ -152,7 +153,7 @@ router.get("/performance-trend", async (req, res) => {
 // GET /api/admin/all-quiz-history
 router.get("/all-quiz-history", async (req, res) => {
     try {
-        const [rows] = await database_1.pool.execute(`SELECT qa.id, qa.user_id, u.first_name, u.last_name, u.email, u.username, qa.skill_id, s.name as skill_name, qa.score, qa.score_percentage, qa.correct_answers, qa.total_questions, qa.time_taken, qa.completed_at
+        const [rows] = await pool.execute(`SELECT qa.id, qa.user_id, u.first_name, u.last_name, u.email, u.username, qa.skill_id, s.name as skill_name, qa.score, qa.score_percentage, qa.correct_answers, qa.total_questions, qa.time_taken, qa.completed_at
        FROM quiz_attempts qa
        JOIN users u ON qa.user_id = u.id
        JOIN skills s ON qa.skill_id = s.id
@@ -170,7 +171,7 @@ router.get("/all-quiz-history", async (req, res) => {
 router.get("/topper-quiz-results", async (req, res) => {
     try {
         // Only users who scored 100% (all answers correct)
-        const [rows] = await database_1.pool.execute(`SELECT qa.id, qa.user_id, u.first_name, u.last_name, u.email, u.username, qa.skill_id, s.name as skill_name, qa.score, qa.score_percentage, qa.correct_answers, qa.total_questions, qa.time_taken, qa.completed_at
+        const [rows] = await pool.execute(`SELECT qa.id, qa.user_id, u.first_name, u.last_name, u.email, u.username, qa.skill_id, s.name as skill_name, qa.score, qa.score_percentage, qa.correct_answers, qa.total_questions, qa.time_taken, qa.completed_at
        FROM quiz_attempts qa
        JOIN users u ON qa.user_id = u.id
        JOIN skills s ON qa.skill_id = s.id

@@ -33,7 +33,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.authorize = exports.authenticate = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const database_1 = require("../config/database");
+const models_1 = require("../models");
 /**
  * Middleware to authenticate users using JWT tokens.
  *
@@ -65,21 +65,8 @@ const authenticate = async (req, res, next) => {
             role: decoded.role,
         });
         // Verify user still exists and is active
-        const [rows] = await database_1.pool.execute("SELECT id, email, role, is_active FROM users WHERE id = ?", [decoded.userId]);
-        const users = rows;
-        // console.log("🔍 Auth middleware - User lookup:", {
-        //   searchingForUserId: decoded.userId,
-        //   foundUsers: users.length,
-        //   userDetails: users[0]
-        //     ? {
-        //         id: users[0].id,
-        //         email: users[0].email,
-        //         role: users[0].role,
-        //         is_active: users[0].is_active,
-        //       }
-        //     : null,
-        // });
-        if (users.length === 0 || !users[0].is_active) {
+        const user = await models_1.User.findById(decoded.userId).select('email role isActive');
+        if (!user || !user.isActive) {
             return res.status(401).json({
                 success: false,
                 message: "User not found or inactive",
@@ -88,7 +75,7 @@ const authenticate = async (req, res, next) => {
         req.user = {
             userId: decoded.userId,
             email: decoded.email,
-            role: users[0].role,
+            role: user.role,
         };
         console.log("✅ Auth middleware - req.user set:", req.user);
         next();

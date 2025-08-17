@@ -1,28 +1,30 @@
+// User types
 export interface User {
   id: number;
   email: string;
   firstName: string;
   lastName: string;
-  role: "admin" | "user";
-  isActive?: boolean;
-  createdAt?: string;
+  role: 'admin' | 'user';
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
+// Auth types
 export interface AuthResponse {
-  token: string;
-  user: {
-    userId: number;
-    role: "admin" | "user";
-    email: string;
-    firstName: string;
-    lastName: string;
+  success: boolean;
+  data: {
+    token: string;
+    user: User;
   };
+  message: string;
 }
 
+// API Response types
 export interface ApiResponse<T> {
   success: boolean;
-  message?: string;
   data: T;
+  message: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -36,8 +38,10 @@ export interface PaginatedResponse<T> {
       pages: number;
     };
   };
+  message: string;
 }
 
+// Skill types
 export interface Skill {
   id: number;
   name: string;
@@ -45,176 +49,102 @@ export interface Skill {
   category: string;
   isActive: boolean;
   createdAt: string;
+  updatedAt: string;
 }
 
+// Question types
 export interface Question {
   id: number;
   skillId: number;
-  skillName?: string;
   questionText: string;
-  options: {
-    A: string;
-    B: string;
-    C: string;
-    D: string;
-  };
-  correctAnswer?: "A" | "B" | "C" | "D";
-  difficulty: "easy" | "medium" | "hard";
+  optionA: string;
+  optionB: string;
+  optionC: string;
+  optionD: string;
+  correctAnswer: 'A' | 'B' | 'C' | 'D';
+  difficulty: 'easy' | 'medium' | 'hard';
   points: number;
   isActive: boolean;
   createdAt: string;
+  updatedAt: string;
 }
 
+// Quiz types
 export interface QuizAttempt {
   id: number;
   userId: number;
   skillId: number;
-  skillName: string;
+  score: number;
   totalQuestions: number;
   correctAnswers: number;
-  scorePercentage: number;
   timeTaken: number;
-  startedAt: string;
   completedAt: string;
-  isAssessed: boolean;
-  assessedAt?: string;
-  assessedBy?: number;
-  assessmentNotes?: string;
+  createdAt: string;
 }
 
-// Partial QuizAttempt for when starting a quiz (before completion)
-export type QuizStartResponse = Pick<
-  QuizAttempt,
-  "id" | "userId" | "skillId" | "skillName" | "totalQuestions" | "startedAt"
->;
-
-export interface QuizAnswer {
-  questionId: number;
-  questionText: string;
-  options: {
-    A: string;
-    B: string;
-    C: string;
-    D: string;
-  };
-  selectedAnswer: "A" | "B" | "C" | "D";
-  correctAnswer: "A" | "B" | "C" | "D";
-  isCorrect: boolean;
-  timeTaken: number;
-}
-
-export interface UserReport {
+export interface QuizStartResponse {
+  id: number;
   userId: number;
-  userName: string;
   skillId: number;
-  skillName: string;
-  totalAttempts: number;
-  assessedAttempts: number;
+  questions: Question[];
+  timeLimit: number;
+  createdAt: string;
+}
+
+// Report types
+export interface UserReport {
+  user: User;
+  totalQuizzes: number;
   averageScore: number;
-  bestScore: number;
-  lastAttemptDate: string;
-  progress: {
-    easy: number;
-    medium: number;
-    hard: number;
-  };
-  assessmentStatus: {
-    pending: number;
-    assessed: number;
-  };
+  skillBreakdown: Array<{
+    skill: Skill;
+    attempts: number;
+    averageScore: number;
+    bestScore: number;
+  }>;
 }
 
 export interface SkillGapReport {
-  skillGaps: {
-    skillId: number;
-    skillName: string;
-    category: string;
-    usersAttempted: number;
+  skills: Array<{
+    skill: Skill;
+    averageScore: number;
     totalAttempts: number;
-    avgScore: number;
-    minScore: number;
-    maxScore: number;
-    participationRate: number;
-    gapLevel: "high" | "medium" | "low";
-  }[];
-  difficultyAnalysis: {
-    difficulty: string;
-    totalQuestions: number;
-    successRate: number;
-    usersAttempted: number;
-  }[];
-  categoryPerformance: {
-    category: string;
-    skillCount: number;
-    avgScore: number;
-    usersAttempted: number;
-  }[];
+    gap: 'low' | 'medium' | 'high';
+  }>;
 }
 
 export interface SystemOverview {
-  basicStatistics: {
-    totalUsers: number;
-    totalSkills: number;
-    totalQuestions: number;
-    totalQuizAttempts: number;
-  };
-  recentActivity: {
-    recentAttempts: number;
-    activeUsers: number;
-    avgRecentScore: number;
-  };
-  dailyActivity: {
-    date: string;
-    quizCount: number;
-    uniqueUsers: number;
-    avgScore: number;
-  }[];
-  topUsers: {
-    id: number;
-    firstName: string;
-    lastName: string;
-    email: string;
-    quizCount: number;
-    avgScore: number;
-  }[];
-  challengingSkills: {
-    id: number;
-    name: string;
+  totalUsers: number;
+  totalQuizzes: number;
+  averageScore: number;
+  topSkills: Array<{
+    skill: Skill;
     attempts: number;
-    avgScore: number;
-  }[];
+  }>;
 }
 
 export interface Leaderboard {
-  leaderboard: {
-    rank: number;
-    id: number;
-    firstName: string;
-    lastName: string;
-    quizCount: number;
-    avgScore: number;
-    bestScore: number;
-    accuracyRate: number;
-  }[];
   period: string;
-  skillId: number | null;
+  users: Array<{
+    user: User;
+    score: number;
+    quizzes: number;
+  }>;
 }
 
+// Assessment types
 export interface AssessmentData {
-  notes: string;
-  score?: number;
-  feedback?: string;
+  technicalScore: number;
+  communicationScore: number;
+  problemSolvingScore: number;
+  overallRating: number;
+  feedback: string;
+  recommendations: string[];
 }
 
-export interface AssessmentRequest {
-  attemptId: number;
-  assessmentData: AssessmentData;
-}
-
-export interface AssessmentResponse {
-  success: boolean;
+// Error types
+export interface ApiError {
   message: string;
-  data: {
-    attempt: QuizAttempt;
-  };
+  code?: string;
+  details?: any;
 }
