@@ -1,22 +1,15 @@
-import Database from "better-sqlite3";
+import mongoose from "mongoose";
 export declare const connectDB: () => Promise<void>;
-export declare const getDB: () => Database.Database;
-export declare const query: (sql: string, params?: any[]) => unknown[][] | Database.RunResult[];
+export declare const getDB: () => mongoose.mongo.Db | undefined;
+import '../models/User';
+import '../models/Skill';
+import '../models/Question';
+import '../models/QuizAttempt';
+import '../models/QuizAnswer';
+import '../models/PasswordResetOtp';
 export declare const pool: {
-    execute: (sql: string, params?: any[]) => unknown[][] | Database.RunResult[];
-    end: () => void;
+    execute: (sql: string, params?: any[]) => Promise<never>;
+    end: () => Promise<void>;
 };
-export declare const registerUser: (userData: {
-    email: string;
-    password: string;
-    firstName: string;
-    lastName: string;
-    role: "admin" | "user";
-}) => Promise<{
-    id: number | bigint;
-    email: string;
-    firstName: string;
-    lastName: string;
-    role: "admin" | "user";
-}>;
+export declare const query: (sql: string, params?: any[]) => Promise<never>;
 //# sourceMappingURL=database.d.ts.map

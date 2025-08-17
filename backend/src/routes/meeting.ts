@@ -21,6 +21,9 @@ interface ParticipantInfo {
   screenSharing: boolean;
   handRaised: boolean;
   joinedAt: Date;
+  isSpeaking?: boolean;
+  audioLevel?: number;
+  connectionQuality?: 'excellent' | 'good' | 'fair' | 'poor';
 }
 
 const meetings = new Map<string, MeetingRoom>();
@@ -69,7 +72,7 @@ router.get('/:meetingId', (req, res) => {
 // Socket.IO setup for real-time communication
 export const setupMeetingSocket = (io: Server) => {
   io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
+    console.log('🔌 User connected:', socket.id);
 
     // Join meeting
     socket.on('join-meeting', ({ meetingId, userInfo }) => {
@@ -108,11 +111,12 @@ export const setupMeetingSocket = (io: Server) => {
         meetingId
       });
 
-      console.log(`User ${userInfo.name} joined meeting ${meetingId}`);
+      console.log(`👤 User ${userInfo.name} joined meeting ${meetingId}`);
     });
 
-    // Handle WebRTC signaling
+    // Handle WebRTC signaling with enhanced logging
     socket.on('offer', ({ meetingId, offer, targetId }) => {
+      console.log(`📤 Forwarding offer from ${socket.id} to ${targetId}`);
       socket.to(targetId).emit('offer', {
         offer,
         senderId: socket.id
@@ -120,6 +124,7 @@ export const setupMeetingSocket = (io: Server) => {
     });
 
     socket.on('answer', ({ meetingId, answer, targetId }) => {
+      console.log(`📤 Forwarding answer from ${socket.id} to ${targetId}`);
       socket.to(targetId).emit('answer', {
         answer,
         senderId: socket.id
@@ -127,6 +132,7 @@ export const setupMeetingSocket = (io: Server) => {
     });
 
     socket.on('ice-candidate', ({ meetingId, candidate, targetId }) => {
+      console.log(`🧊 Forwarding ICE candidate from ${socket.id} to ${targetId}`);
       socket.to(targetId).emit('ice-candidate', {
         candidate,
         senderId: socket.id
@@ -163,10 +169,24 @@ export const setupMeetingSocket = (io: Server) => {
       if (meeting && meeting.participants.has(socket.id)) {
         const participant = meeting.participants.get(socket.id)!;
         participant.screenSharing = enabled;
-        socket.to(meetingId).emit('participant-screen-share', {
+        
+        console.log(`🖥️ ${participant.name} ${enabled ? 'started' : 'stopped'} screen sharing`);
+        
+        // Broadcast to all participants in the meeting
+        io.to(meetingId).emit('participant-screen-share', {
           participantId: socket.id,
+          participantName: participant.name,
           enabled
         });
+        
+        // If screen sharing started, prioritize this participant
+        if (enabled) {
+          io.to(meetingId).emit('active-speaker-changed', {
+            participantId: socket.id,
+            participantName: participant.name,
+            reason: 'screen-share'
+          });
+        }
       }
     });
 
@@ -175,7 +195,11 @@ export const setupMeetingSocket = (io: Server) => {
       if (meeting && meeting.participants.has(socket.id)) {
         const participant = meeting.participants.get(socket.id)!;
         participant.handRaised = raised;
-        socket.to(meetingId).emit('participant-hand-raised', {
+        
+        console.log(`✋ ${participant.name} ${raised ? 'raised' : 'lowered'} hand`);
+        
+        // Broadcast to all participants including sender
+        io.to(meetingId).emit('participant-hand-raised', {
           participantId: socket.id,
           raised,
           participantName: participant.name
@@ -183,17 +207,29 @@ export const setupMeetingSocket = (io: Server) => {
       }
     });
 
-    // Chat messages
+    // Chat messages with enhanced handling
     socket.on('send-message', ({ meetingId, message }) => {
       const meeting = meetings.get(meetingId);
       if (meeting && meeting.participants.has(socket.id)) {
         const participant = meeting.participants.get(socket.id)!;
+        
+        // Validate message
+        if (!message || message.trim().length === 0) {
+          return;
+        }
+        
         const chatMessage = {
-          id: Date.now().toString(),
+          id: `${Date.now()}-${socket.id}`,
           sender: participant.name,
-          message,
-          timestamp: new Date()
+          senderId: socket.id,
+          message: message.trim(),
+          timestamp: new Date(),
+          isHost: participant.isHost
         };
+        
+        console.log(`💬 Chat message from ${participant.name}: ${message.substring(0, 50)}${message.length > 50 ? '...' : ''}`);
+        
+        // Broadcast to all participants in the meeting
         io.to(meetingId).emit('new-message', chatMessage);
       }
     });
@@ -230,15 +266,68 @@ export const setupMeetingSocket = (io: Server) => {
       console.log(`❌ Join request rejected for ${requestId}`);
     });
 
-    // Handle disconnect
+    // Voice activity detection
+    socket.on('voice-activity', ({ meetingId, isActive, audioLevel }) => {
+      const meeting = meetings.get(meetingId);
+      if (meeting && meeting.participants.has(socket.id)) {
+        const participant = meeting.participants.get(socket.id)!;
+        
+        // Only broadcast significant voice activity changes
+        if (isActive && audioLevel > 25) {
+          console.log(`🎤 Voice activity detected from ${participant.name} (level: ${audioLevel})`);
+          
+          // Broadcast to all other participants
+          socket.to(meetingId).emit('voice-activity', {
+            participantId: socket.id,
+            participantName: participant.name,
+            isActive,
+            audioLevel
+          });
+          
+          // Set as active speaker
+          io.to(meetingId).emit('active-speaker-changed', {
+            participantId: socket.id,
+            participantName: participant.name,
+            reason: 'voice-activity'
+          });
+        }
+      }
+    });
+
+    // Connection quality monitoring
+    socket.on('connection-quality', ({ meetingId, stats }) => {
+      const meeting = meetings.get(meetingId);
+      if (meeting && meeting.participants.has(socket.id)) {
+        const participant = meeting.participants.get(socket.id)!;
+        
+        // Log poor connection quality
+        if (stats.packetsLost > 10 || stats.roundTripTime > 500) {
+          console.log(`⚠️ Poor connection quality for ${participant.name}:`, stats);
+        }
+        
+        // Optionally broadcast to host for monitoring
+        const hostParticipant = Array.from(meeting.participants.values()).find(p => p.isHost);
+        if (hostParticipant) {
+          io.to(hostParticipant.id).emit('participant-connection-quality', {
+            participantId: socket.id,
+            participantName: participant.name,
+            stats
+          });
+        }
+      }
+    });
+
+    // Handle disconnect with enhanced cleanup
     socket.on('disconnect', () => {
-      console.log('User disconnected:', socket.id);
+      console.log('🔌 User disconnected:', socket.id);
       
       // Remove from all meetings
       meetings.forEach((meeting, meetingId) => {
         if (meeting.participants.has(socket.id)) {
           const participant = meeting.participants.get(socket.id)!;
           meeting.participants.delete(socket.id);
+          
+          console.log(`👋 ${participant.name} left meeting ${meetingId}`);
           
           // Notify other participants
           socket.to(meetingId).emit('user-left', {
@@ -247,9 +336,16 @@ export const setupMeetingSocket = (io: Server) => {
             participantCount: meeting.participants.size
           });
 
+          // If this was the active speaker, clear it
+          io.to(meetingId).emit('active-speaker-changed', {
+            participantId: null,
+            reason: 'participant-left'
+          });
+
           // Clean up empty meetings
           if (meeting.participants.size === 0) {
             meetings.delete(meetingId);
+            console.log(`🗑️ Cleaned up empty meeting ${meetingId}`);
           }
         }
       });
@@ -262,17 +358,60 @@ export const setupMeetingSocket = (io: Server) => {
         meeting.participants.delete(socket.id);
         socket.leave(meetingId);
         
+        console.log(`👋 ${participant.name} left meeting ${meetingId}`);
+        
+        // Notify other participants
         socket.to(meetingId).emit('user-left', {
           participantId: socket.id,
           participantName: participant.name,
           participantCount: meeting.participants.size
         });
 
+        // If this was the active speaker, clear it
+        io.to(meetingId).emit('active-speaker-changed', {
+          participantId: null,
+          reason: 'participant-left'
+        });
+
+        // Clean up empty meetings
         if (meeting.participants.size === 0) {
           meetings.delete(meetingId);
+          console.log(`🗑️ Cleaned up empty meeting ${meetingId}`);
         }
       }
     });
+    // Ping/Pong for connection health
+    socket.on('ping', () => {
+      socket.emit('pong');
+    });
+
+    // Meeting recording controls (for future implementation)
+    socket.on('start-recording', ({ meetingId }) => {
+      const meeting = meetings.get(meetingId);
+      if (meeting && meeting.participants.has(socket.id)) {
+        const participant = meeting.participants.get(socket.id)!;
+        if (participant.isHost) {
+          console.log(`🎥 Recording started by ${participant.name} in meeting ${meetingId}`);
+          io.to(meetingId).emit('recording-started', {
+            startedBy: participant.name
+          });
+        }
+      }
+    });
+
+    socket.on('stop-recording', ({ meetingId }) => {
+      const meeting = meetings.get(meetingId);
+      if (meeting && meeting.participants.has(socket.id)) {
+        const participant = meeting.participants.get(socket.id)!;
+        if (participant.isHost) {
+          console.log(`🛑 Recording stopped by ${participant.name} in meeting ${meetingId}`);
+          io.to(meetingId).emit('recording-stopped', {
+            stoppedBy: participant.name
+          });
+        }
+      }
+    });
+
   });
 };
 

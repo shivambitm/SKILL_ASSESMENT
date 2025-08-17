@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const database_1 = require("../config/database");
+const models_1 = require("../models");
 const auth_1 = require("../middleware/auth");
 const router = express_1.default.Router();
 /**
@@ -47,40 +47,40 @@ router.get("/", auth_1.authenticate, (0, auth_1.authorize)(["admin"]), async (re
         const limit = parseInt(req.query.limit) || 10;
         const search = req.query.search || "";
         const role = req.query.role || "";
-        const offset = (page - 1) * limit;
         // Build query conditions
-        let whereClause = "WHERE 1=1";
-        const queryParams = [];
+        const query = {};
         if (search) {
-            whereClause +=
-                " AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ?)";
-            queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+            query.$or = [
+                { firstName: { $regex: search, $options: 'i' } },
+                { lastName: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } }
+            ];
         }
         if (role) {
-            whereClause += " AND role = ?";
-            queryParams.push(role);
+            query.role = role;
         }
         // Get total count
-        const [countResult] = await database_1.pool.execute(`SELECT COUNT(*) as total FROM users ${whereClause}`, queryParams);
-        const total = countResult[0].total;
+        const total = await models_1.User.countDocuments(query);
         // Get users
-        const [rows] = await database_1.pool.execute(`SELECT id, email, first_name, last_name, role, is_active, created_at 
-       FROM users ${whereClause} 
-       ORDER BY created_at DESC 
-       LIMIT ? OFFSET ?`, [...queryParams, limit, offset]);
-        const users = rows.map((user) => ({
-            id: user.id,
+        const users = await models_1.User.find(query)
+            .select('-password')
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .lean();
+        const formattedUsers = users.map((user) => ({
+            id: user._id,
             email: user.email,
-            firstName: user.first_name,
-            lastName: user.last_name,
+            firstName: user.firstName,
+            lastName: user.lastName,
             role: user.role,
-            isActive: user.is_active,
-            createdAt: user.created_at,
+            isActive: user.isActive,
+            createdAt: user.createdAt,
         }));
         res.json({
             success: true,
             data: {
-                users,
+                users: formattedUsers,
                 pagination: {
                     page,
                     limit,
@@ -146,37 +146,36 @@ router.put("/profile", auth_1.authenticate, async (req, res) => {
             });
         }
         // Check if email is already taken by another user
-        const [existingUsers] = await database_1.pool.execute("SELECT id FROM users WHERE email = ? AND id != ?", [email, userId]);
-        if (existingUsers.length > 0) {
+        const existingUser = await models_1.User.findOne({
+            email,
+            _id: { $ne: userId }
+        });
+        if (existingUser) {
             return res.status(400).json({
                 success: false,
                 message: "Email is already taken by another user",
             });
         }
         // Update user profile
-        await database_1.pool.execute("UPDATE users SET first_name = ?, last_name = ?, email = ? WHERE id = ?", [firstName, lastName, email, userId]);
-        // Get updated user data
-        const [rows] = await database_1.pool.execute("SELECT id, email, first_name, last_name, role, is_active FROM users WHERE id = ?", [userId]);
-        if (rows.length === 0) {
+        const user = await models_1.User.findByIdAndUpdate(userId, { firstName, lastName, email }, { new: true }).select('-password');
+        if (!user) {
             return res.status(404).json({
                 success: false,
                 message: "User not found",
             });
         }
-        const user = rows[0];
-        const updatedUser = {
-            id: user.id,
-            email: user.email,
-            firstName: user.first_name,
-            lastName: user.last_name,
-            role: user.role,
-            isActive: user.is_active,
-        };
         res.json({
             success: true,
             message: "Profile updated successfully",
             data: {
-                user: updatedUser,
+                user: {
+                    id: user._id,
+                    email: user.email,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    role: user.role,
+                    isActive: user.isActive,
+                },
             },
         });
     }
@@ -199,7 +198,7 @@ router.put("/profile", auth_1.authenticate, async (req, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
  *         description: User ID
  *     responses:
  *       200:
@@ -212,27 +211,24 @@ router.put("/profile", auth_1.authenticate, async (req, res) => {
 // Get user by ID (Admin only)
 router.get("/:id", auth_1.authenticate, (0, auth_1.authorize)(["admin"]), async (req, res) => {
     try {
-        const userId = parseInt(req.params.id);
-        const [rows] = await database_1.pool.execute("SELECT id, email, first_name, last_name, role, is_active, created_at FROM users WHERE id = ?", [userId]);
-        const users = rows;
-        if (users.length === 0) {
+        const user = await models_1.User.findById(req.params.id).select('-password');
+        if (!user) {
             return res.status(404).json({
                 success: false,
                 message: "User not found",
             });
         }
-        const user = users[0];
         res.json({
             success: true,
             data: {
                 user: {
-                    id: user.id,
+                    id: user._id,
                     email: user.email,
-                    firstName: user.first_name,
-                    lastName: user.last_name,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
                     role: user.role,
-                    isActive: user.is_active,
-                    createdAt: user.created_at,
+                    isActive: user.isActive,
+                    createdAt: user.createdAt,
                 },
             },
         });
@@ -256,7 +252,7 @@ router.get("/:id", auth_1.authenticate, (0, auth_1.authorize)(["admin"]), async 
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
  *         description: User ID
  *     requestBody:
  *       required: true
@@ -265,9 +261,9 @@ router.get("/:id", auth_1.authenticate, (0, auth_1.authorize)(["admin"]), async 
  *           schema:
  *             type: object
  *             properties:
- *               first_name:
+ *               firstName:
  *                 type: string
- *               last_name:
+ *               lastName:
  *                 type: string
  *               email:
  *                 type: string
@@ -285,43 +281,25 @@ router.get("/:id", auth_1.authenticate, (0, auth_1.authorize)(["admin"]), async 
 // Update user (Admin only)
 router.put("/:id", auth_1.authenticate, (0, auth_1.authorize)(["admin"]), async (req, res) => {
     try {
-        const userId = parseInt(req.params.id);
         const { firstName, lastName, role, isActive } = req.body;
         // Check if user exists
-        const [existingUsers] = await database_1.pool.execute("SELECT id FROM users WHERE id = ?", [userId]);
-        if (existingUsers.length === 0) {
+        const user = await models_1.User.findById(req.params.id);
+        if (!user) {
             return res.status(404).json({
                 success: false,
                 message: "User not found",
             });
         }
-        // Build update query
-        const updateFields = [];
-        const updateValues = [];
-        if (firstName) {
-            updateFields.push("first_name = ?");
-            updateValues.push(firstName);
-        }
-        if (lastName) {
-            updateFields.push("last_name = ?");
-            updateValues.push(lastName);
-        }
-        if (role) {
-            updateFields.push("role = ?");
-            updateValues.push(role);
-        }
-        if (typeof isActive === "boolean") {
-            updateFields.push("is_active = ?");
-            updateValues.push(isActive);
-        }
-        if (updateFields.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: "No fields to update",
-            });
-        }
-        updateValues.push(userId);
-        await database_1.pool.execute(`UPDATE users SET ${updateFields.join(", ")} WHERE id = ?`, updateValues);
+        // Update fields
+        if (firstName !== undefined)
+            user.firstName = firstName;
+        if (lastName !== undefined)
+            user.lastName = lastName;
+        if (role !== undefined)
+            user.role = role;
+        if (typeof isActive === "boolean")
+            user.isActive = isActive;
+        await user.save();
         res.json({
             success: true,
             message: "User updated successfully",
@@ -346,7 +324,7 @@ router.put("/:id", auth_1.authenticate, (0, auth_1.authorize)(["admin"]), async 
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
  *         description: User ID
  *     responses:
  *       200:
@@ -359,23 +337,22 @@ router.put("/:id", auth_1.authenticate, (0, auth_1.authorize)(["admin"]), async 
 // Delete user (Admin only)
 router.delete("/:id", auth_1.authenticate, (0, auth_1.authorize)(["admin"]), async (req, res) => {
     try {
-        const userId = parseInt(req.params.id);
         // Check if user exists
-        const [existingUsers] = await database_1.pool.execute("SELECT id FROM users WHERE id = ?", [userId]);
-        if (existingUsers.length === 0) {
+        const user = await models_1.User.findById(req.params.id);
+        if (!user) {
             return res.status(404).json({
                 success: false,
                 message: "User not found",
             });
         }
-        // Don't allow deleting the last admin
-        if (req.user.userId === userId) {
+        // Don't allow deleting your own account
+        if (req.user.userId.toString() === req.params.id) {
             return res.status(400).json({
                 success: false,
                 message: "Cannot delete your own account",
             });
         }
-        await database_1.pool.execute("DELETE FROM users WHERE id = ?", [userId]);
+        await models_1.User.findByIdAndDelete(req.params.id);
         res.json({
             success: true,
             message: "User deleted successfully",
@@ -407,17 +384,20 @@ router.get("/stats/overview", auth_1.authenticate, (0, auth_1.authorize)(["admin
          *         description: Unauthorized
          */
         // Get total users
-        const [totalUsersResult] = await database_1.pool.execute("SELECT COUNT(*) as total FROM users");
-        const totalUsers = totalUsersResult[0].total;
+        const totalUsers = await models_1.User.countDocuments();
         // Get active users
-        const [activeUsersResult] = await database_1.pool.execute("SELECT COUNT(*) as total FROM users WHERE is_active = true");
-        const activeUsers = activeUsersResult[0].total;
+        const activeUsers = await models_1.User.countDocuments({ isActive: true });
         // Get users by role
-        const [roleStatsResult] = await database_1.pool.execute("SELECT role, COUNT(*) as count FROM users GROUP BY role");
-        const roleStats = roleStatsResult;
+        const roleStats = await models_1.User.aggregate([
+            { $group: { _id: "$role", count: { $sum: 1 } } },
+            { $project: { role: "$_id", count: 1, _id: 0 } }
+        ]);
         // Get recent registrations (last 30 days)
-        const [recentRegistrationsResult] = await database_1.pool.execute("SELECT COUNT(*) as total FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)");
-        const recentRegistrations = recentRegistrationsResult[0].total;
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const recentRegistrations = await models_1.User.countDocuments({
+            createdAt: { $gte: thirtyDaysAgo }
+        });
         res.json({
             success: true,
             data: {
@@ -447,7 +427,7 @@ router.get("/stats/overview", auth_1.authenticate, (0, auth_1.authorize)(["admin
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
  *         description: User ID
  *     responses:
  *       200:
@@ -460,17 +440,17 @@ router.get("/stats/overview", auth_1.authenticate, (0, auth_1.authorize)(["admin
 // Toggle user status (Admin only)
 router.put("/:id/toggle-status", auth_1.authenticate, (0, auth_1.authorize)(["admin"]), async (req, res) => {
     try {
-        const userId = parseInt(req.params.id);
         // Check if user exists
-        const [existingUsers] = await database_1.pool.execute("SELECT id FROM users WHERE id = ?", [userId]);
-        if (existingUsers.length === 0) {
+        const user = await models_1.User.findById(req.params.id);
+        if (!user) {
             return res.status(404).json({
                 success: false,
                 message: "User not found",
             });
         }
         // Toggle user status
-        await database_1.pool.execute("UPDATE users SET is_active = NOT is_active WHERE id = ?", [userId]);
+        user.isActive = !user.isActive;
+        await user.save();
         res.json({
             success: true,
             message: "User status toggled successfully",

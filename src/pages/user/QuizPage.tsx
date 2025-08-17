@@ -110,14 +110,21 @@ const QuizPage: React.FC = () => {
           limit: 100,
           isActive: "true",
         });
+        
         const skillsData = response.data.data.items || [];
-        setSkills(skillsData);
-        setFilteredSkills(skillsData);
+        
+        // Map skills to ensure consistent id field
+        const mappedSkills = skillsData.map((skill: any) => ({
+          ...skill,
+          id: skill.id || skill._id
+        }));
+        setSkills(mappedSkills);
+        setFilteredSkills(mappedSkills);
 
         // Auto-select skill if provided in URL
         if (skillIdParam) {
           const skillId = parseInt(skillIdParam);
-          const skill = skillsData.find((s: Skill) => s.id === skillId);
+          const skill = mappedSkills.find((s: Skill) => s.id === skillId);
           if (skill) {
             setSelectedSkill(skillId);
           }

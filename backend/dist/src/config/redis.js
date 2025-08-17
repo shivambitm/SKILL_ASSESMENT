@@ -1,101 +1,48 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cacheDel = exports.cacheSet = exports.cacheGet = exports.getRedisClient = exports.connectRedis = void 0;
-const redis_1 = require("redis");
-const dotenv_1 = __importDefault(require("dotenv"));
-dotenv_1.default.config();
-// Ensure client is properly typed and initialized
-let client;
+console.log('🚫 [Redis] Redis disabled - using in-memory caching');
+// In-memory cache replacement for Redis
+const cache = new Map();
 const connectRedis = async () => {
-    // Skip Redis connection entirely if REDIS_ENABLED is not 'true'
-    if (process.env.REDIS_ENABLED !== "true") {
-        console.log("Redis is disabled (REDIS_ENABLED != 'true'), skipping Redis connection.");
-        return;
-    }
-    console.log("Connecting to Redis...");
-    try {
-        // Skip Redis connection in development if REDIS_OPTIONAL is set
-        if (process.env.NODE_ENV === "development" &&
-            process.env.REDIS_OPTIONAL === "true") {
-            console.log("Redis connection skipped in development mode");
-            return;
-        }
-        client = (0, redis_1.createClient)({
-            socket: {
-                host: process.env.REDIS_HOST || "localhost",
-                port: parseInt(process.env.REDIS_PORT || "6379"),
-            },
-            password: process.env.REDIS_PASSWORD || undefined,
-        });
-        client.on("error", (err) => {
-            console.error("Redis Client Error", err);
-            // Don't crash the app in development
-            if (process.env.NODE_ENV === "development") {
-                console.log("Redis errors ignored in development mode");
-                return;
-            }
-        });
-        client.on("connect", () => {
-            console.log("Redis connected successfully.");
-        });
-        await client.connect();
-    }
-    catch (error) {
-        console.error("Redis connection failed:", error);
-        // In development, make Redis optional
-        if (process.env.NODE_ENV === "development") {
-            console.log("Continuing without Redis in development mode...");
-            client = undefined; // Mark client as unavailable
-            return;
-        }
-        // In production, Redis failure should be handled more strictly
-        throw error;
-    }
+    console.log('✅ [Cache] In-memory cache initialized');
+    return Promise.resolve();
 };
 exports.connectRedis = connectRedis;
 const getRedisClient = () => {
-    return client;
+    return null;
 };
 exports.getRedisClient = getRedisClient;
 const cacheGet = async (key) => {
-    try {
-        if (!client || !client.isOpen)
-            return null;
-        return await client.get(key);
-    }
-    catch (error) {
-        console.error("Redis get error:", error);
+    const item = cache.get(key);
+    if (!item)
+        return null;
+    if (Date.now() > item.expires) {
+        cache.delete(key);
         return null;
     }
+    return item.value;
 };
 exports.cacheGet = cacheGet;
 const cacheSet = async (key, value, expireInSeconds = 3600) => {
-    try {
-        if (!client || !client.isOpen)
-            return false;
-        await client.setEx(key, expireInSeconds, value);
-        return true;
-    }
-    catch (error) {
-        console.error("Redis set error:", error);
-        return false;
-    }
+    cache.set(key, {
+        value,
+        expires: Date.now() + (expireInSeconds * 1000)
+    });
+    return true;
 };
 exports.cacheSet = cacheSet;
 const cacheDel = async (key) => {
-    try {
-        if (!client || !client.isOpen)
-            return false;
-        await client.del(key);
-        return true;
-    }
-    catch (error) {
-        console.error("Redis del error:", error);
-        return false;
-    }
+    return cache.delete(key);
 };
 exports.cacheDel = cacheDel;
+// Cleanup expired items periodically
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, item] of cache.entries()) {
+        if (now > item.expires) {
+            cache.delete(key);
+        }
+    }
+}, 60000); // Clean up every minute
 //# sourceMappingURL=redis.js.map

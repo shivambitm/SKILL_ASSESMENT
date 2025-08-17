@@ -4,18 +4,22 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const database_1 = require("../config/database");
+const models_1 = require("../models");
 const router = express_1.default.Router();
 // GET all skills with their questions (from DB)
 router.get("/skills-with-questions", 
 /*isAdmin,*/ async (req, res) => {
     try {
-        const [skills] = await database_1.pool.execute("SELECT * FROM skills");
+        const skills = await models_1.Skill.find();
+        const skillsWithQuestions = [];
         for (const skill of skills) {
-            const [questions] = await database_1.pool.execute("SELECT * FROM questions WHERE skill_id = ?", [skill.id]);
-            skill.questions = questions;
+            const questions = await models_1.Question.find({ skill_id: skill._id });
+            skillsWithQuestions.push({
+                ...skill.toObject(),
+                questions
+            });
         }
-        res.json({ data: skills });
+        res.json({ data: skillsWithQuestions });
     }
     catch (err) {
         console.error("Error fetching skills with questions:", err);
@@ -28,7 +32,7 @@ router.get("/skills-with-questions",
 router.get("/skills", 
 /*isAdmin,*/ async (req, res) => {
     try {
-        const [skills] = await database_1.pool.execute("SELECT * FROM skills");
+        const skills = await models_1.Skill.find();
         res.json({ data: skills });
     }
     catch (err) {
@@ -41,11 +45,11 @@ router.put("/skills/:id",
 /*isAdmin,*/ async (req, res) => {
     const { name, description } = req.body;
     try {
-        const [result] = await database_1.pool.execute("UPDATE skills SET name = ?, description = ? WHERE id = ?", [name, description, req.params.id]);
-        if (!result || result.changes === 0) {
+        const skill = await models_1.Skill.findByIdAndUpdate(req.params.id, { name, description }, { new: true });
+        if (!skill) {
             return res.status(404).json({ message: "Skill not found" });
         }
-        res.json({ message: "Skill updated" });
+        res.json({ message: "Skill updated", data: skill });
     }
     catch (err) {
         console.error("Error updating skill:", err);
@@ -56,10 +60,12 @@ router.put("/skills/:id",
 router.delete("/skills/:id", 
 /*isAdmin,*/ async (req, res) => {
     try {
-        const [result] = await database_1.pool.execute("DELETE FROM skills WHERE id = ?", [req.params.id]);
-        if (!result || result.changes === 0) {
+        const skill = await models_1.Skill.findByIdAndDelete(req.params.id);
+        if (!skill) {
             return res.status(404).json({ message: "Skill not found" });
         }
+        // Also delete associated questions
+        await models_1.Question.deleteMany({ skill_id: req.params.id });
         res.json({ message: "Skill deleted" });
     }
     catch (err) {

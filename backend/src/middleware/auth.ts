@@ -29,10 +29,10 @@
 
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { pool } from "../config/database";
+import { User } from "../models";
 
 interface JwtPayload {
-  userId: number;
+  userId: string;
   email: string;
   role: string;
 }
@@ -80,26 +80,9 @@ export const authenticate = async (
     });
 
     // Verify user still exists and is active
-    const [rows] = await pool.execute(
-      "SELECT id, email, role, is_active FROM users WHERE id = ?",
-      [decoded.userId]
-    );
-
-    const users = rows as any[];
-    // console.log("🔍 Auth middleware - User lookup:", {
-    //   searchingForUserId: decoded.userId,
-    //   foundUsers: users.length,
-    //   userDetails: users[0]
-    //     ? {
-    //         id: users[0].id,
-    //         email: users[0].email,
-    //         role: users[0].role,
-    //         is_active: users[0].is_active,
-    //       }
-    //     : null,
-    // });
-
-    if (users.length === 0 || !users[0].is_active) {
+    const user = await User.findById(decoded.userId).select('email role isActive');
+    
+    if (!user || !user.isActive) {
       return res.status(401).json({
         success: false,
         message: "User not found or inactive",
@@ -109,7 +92,7 @@ export const authenticate = async (
     req.user = {
       userId: decoded.userId,
       email: decoded.email,
-      role: users[0].role,
+      role: user.role,
     };
 
     console.log("✅ Auth middleware - req.user set:", req.user);

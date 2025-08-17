@@ -1,5 +1,5 @@
 import express from "express";
-import { pool } from "../config/database";
+import { Skill, Question } from "../models";
 
 const router = express.Router();
 
@@ -8,15 +8,18 @@ router.get(
   "/skills-with-questions",
   /*isAdmin,*/ async (req, res) => {
     try {
-      const [skills] = await pool.execute("SELECT * FROM skills");
-      for (const skill of skills as any[]) {
-        const [questions] = await pool.execute(
-          "SELECT * FROM questions WHERE skill_id = ?",
-          [skill.id]
-        );
-        skill.questions = questions;
+      const skills = await Skill.find();
+      const skillsWithQuestions = [];
+      
+      for (const skill of skills) {
+        const questions = await Question.find({ skill_id: skill._id });
+        skillsWithQuestions.push({
+          ...skill.toObject(),
+          questions
+        });
       }
-      res.json({ data: skills });
+      
+      res.json({ data: skillsWithQuestions });
     } catch (err) {
       console.error("Error fetching skills with questions:", err);
       res
@@ -31,7 +34,7 @@ router.get(
   "/skills",
   /*isAdmin,*/ async (req, res) => {
     try {
-      const [skills] = await pool.execute("SELECT * FROM skills");
+      const skills = await Skill.find();
       res.json({ data: skills });
     } catch (err) {
       console.error("Error fetching skills:", err);
@@ -46,14 +49,17 @@ router.put(
   /*isAdmin,*/ async (req, res) => {
     const { name, description } = req.body;
     try {
-      const [result]: any = await pool.execute(
-        "UPDATE skills SET name = ?, description = ? WHERE id = ?",
-        [name, description, req.params.id]
+      const skill = await Skill.findByIdAndUpdate(
+        req.params.id,
+        { name, description },
+        { new: true }
       );
-      if (!result || result.changes === 0) {
+      
+      if (!skill) {
         return res.status(404).json({ message: "Skill not found" });
       }
-      res.json({ message: "Skill updated" });
+      
+      res.json({ message: "Skill updated", data: skill });
     } catch (err) {
       console.error("Error updating skill:", err);
       res.status(500).json({ message: "Failed to update skill" });
@@ -66,13 +72,15 @@ router.delete(
   "/skills/:id",
   /*isAdmin,*/ async (req, res) => {
     try {
-      const [result]: any = await pool.execute(
-        "DELETE FROM skills WHERE id = ?",
-        [req.params.id]
-      );
-      if (!result || result.changes === 0) {
+      const skill = await Skill.findByIdAndDelete(req.params.id);
+      
+      if (!skill) {
         return res.status(404).json({ message: "Skill not found" });
       }
+      
+      // Also delete associated questions
+      await Question.deleteMany({ skill_id: req.params.id });
+      
       res.json({ message: "Skill deleted" });
     } catch (err) {
       console.error("Error deleting skill:", err);

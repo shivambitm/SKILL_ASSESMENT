@@ -37,10 +37,9 @@ const Leaderboard: React.FC = () => {
         const lb = leaderboardResponse.data?.data?.leaderboard;
         const leaderboardData = Array.isArray(lb) ? lb : [];
         setLeaderboard(leaderboardData);
-        showSuccess(`Loaded leaderboard with ${leaderboardData.length} entries!`);
 
-        // Fetch skills for filter
-        if (!skills || !Array.isArray(skills) || skills.length === 0) {
+        // Fetch skills for filter only once
+        if (skills.length === 0) {
           const skillsResponse = await skillsApi.getSkills({
             limit: 100,
             isActive: "true",
@@ -61,7 +60,7 @@ const Leaderboard: React.FC = () => {
     };
 
     fetchData();
-  }, [selectedPeriod, selectedSkill, skills]);
+  }, [selectedPeriod, selectedSkill]);
 
   const getRankIcon = (rank: number) => {
     switch (rank) {

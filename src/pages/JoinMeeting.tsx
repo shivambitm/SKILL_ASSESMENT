@@ -23,7 +23,9 @@ const JoinMeeting: React.FC = () => {
   const [showChat, setShowChat] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [mirrorVideo, setMirrorVideo] = useState(true);
+  const [screenSharingParticipant, setScreenSharingParticipant] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const screenShareRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const chatEndRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
@@ -43,10 +45,37 @@ const JoinMeeting: React.FC = () => {
       setParticipants(prev => prev.filter(p => p.id !== participantId));
     };
     
-    webRTCService.onRemoteStream = (participantId, stream) => {
-      const videoElement = remoteVideoRefs.current.get(participantId);
-      if (videoElement) {
-        videoElement.srcObject = stream;
+    webRTCService.onRemoteStream = (participantId, stream, type) => {
+      if (type === 'screen') {
+        console.log(`📺 [JoinMeeting] Screen share stream from ${participantId}`);
+        setScreenSharingParticipant(participantId);
+        if (screenShareRef.current) {
+          screenShareRef.current.srcObject = stream;
+        }
+      } else {
+        console.log(`📹 [JoinMeeting] Camera stream from ${participantId}`);
+        const videoElement = remoteVideoRefs.current.get(participantId);
+        if (videoElement) {
+          videoElement.srcObject = stream;
+        }
+      }
+    };
+    
+    webRTCService.onScreenShareStarted = (participantId, stream) => {
+      console.log(`📺 [JoinMeeting] Screen share started by ${participantId}`);
+      setScreenSharingParticipant(participantId);
+      if (screenShareRef.current) {
+        screenShareRef.current.srcObject = stream;
+      }
+    };
+    
+    webRTCService.onScreenShareStopped = (participantId) => {
+      console.log(`📺 [JoinMeeting] Screen share stopped by ${participantId}`);
+      if (screenSharingParticipant === participantId) {
+        setScreenSharingParticipant(null);
+      }
+      if (screenShareRef.current) {
+        screenShareRef.current.srcObject = null;
       }
     };
     
@@ -66,6 +95,13 @@ const JoinMeeting: React.FC = () => {
       setParticipants(prev => prev.map(p => 
         p.id === participantId ? { ...p, screenSharing: enabled } : p
       ));
+      
+      // Set screen sharing participant
+      if (enabled) {
+        setScreenSharingParticipant(participantId);
+      } else {
+        setScreenSharingParticipant(null);
+      }
     };
     
     webRTCService.onNewMessage = (message) => {
@@ -171,9 +207,13 @@ const JoinMeeting: React.FC = () => {
     };
     
     return () => {
-      // Clean up any existing stream
+      // Clean up any existing streams
       if (videoRef.current?.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+      }
+      if (screenShareRef.current?.srcObject) {
+        const stream = screenShareRef.current.srcObject as MediaStream;
         stream.getTracks().forEach(track => track.stop());
       }
       webRTCService.leaveMeeting();
@@ -327,26 +367,15 @@ const JoinMeeting: React.FC = () => {
   };
 
   const getThemeStyles = () => {
-    switch (theme) {
-      case 'anime':
-        return {
-          background: 'bg-gradient-to-br from-pink-100 via-purple-50 to-indigo-100 dark:from-purple-900 dark:via-pink-900 dark:to-indigo-900',
-          card: 'bg-white/90 dark:bg-gray-800/90 backdrop-blur-md border-pink-200 dark:border-pink-800',
-          button: 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700'
-        };
-      case 'light':
-        return {
-          background: 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50',
-          card: 'bg-white border-slate-200 shadow-sm',
-          button: 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800'
-        };
-      default:
-        return {
-          background: 'bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-purple-900',
-          card: 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700',
-          button: 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'
-        };
-    }
+    // Always use premium theme for better visibility
+    return {
+      background: 'bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-purple-900',
+      card: 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-lg',
+      button: 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700',
+      text: 'text-gray-900 dark:text-white',
+      textSecondary: 'text-gray-700 dark:text-gray-300',
+      textMuted: 'text-gray-600 dark:text-gray-400'
+    };
   };
 
   const themeStyles = getThemeStyles();
@@ -360,7 +389,7 @@ const JoinMeeting: React.FC = () => {
             <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
               <Users className="w-8 h-8 text-blue-600" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Waiting for Host Approval</h1>
+            <h1 className={`text-2xl font-bold ${themeStyles.text} mb-2`}>Waiting for Host Approval</h1>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
               {waitingMessage}
             </p>
@@ -384,7 +413,7 @@ const JoinMeeting: React.FC = () => {
         {/* Meeting Header */}
         <div className={`${themeStyles.card} border-b p-4 flex items-center justify-between`}>
           <div className="flex items-center gap-4">
-            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Interview Room</h1>
+            <h1 className={`text-lg font-semibold ${themeStyles.text}`}>Interview Room</h1>
             <span className="text-sm text-gray-500 dark:text-gray-400">Meeting ID: {meetingId}</span>
             <span className="text-sm text-gray-500 dark:text-gray-400">• {participants.length} participant{participants.length !== 1 ? 's' : ''}</span>
           </div>
@@ -451,7 +480,31 @@ const JoinMeeting: React.FC = () => {
         <div className="flex-1 flex">
           {/* Video Area */}
           <div className={`${showChat ? 'flex-1' : 'w-full'} p-4`}>
-            <div className="h-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Screen Share Display - Always on top when active */}
+            {screenSharingParticipant && (
+              <div className="mb-4">
+                <div className="bg-gray-900 rounded-lg relative overflow-hidden" style={{ aspectRatio: '16/9' }}>
+                  <video
+                    ref={screenShareRef}
+                    autoPlay
+                    playsInline
+                    className="w-full h-full object-contain bg-black"
+                    onLoadedMetadata={() => console.log('✅ [JoinMeeting] Screen share video loaded')}
+                    onError={(e) => console.error('❌ [JoinMeeting] Screen share video error:', e)}
+                  />
+                  
+                  {/* Screen Share Indicator */}
+                  <div className="absolute top-4 left-4 bg-blue-500 text-white px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2">
+                    <Monitor className="w-4 h-4" />
+                    <span>
+                      {participants.find(p => p.id === screenSharingParticipant)?.name || 'Unknown'} is sharing screen
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className={`h-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 ${screenSharingParticipant ? 'h-64' : ''}`}>
               {/* Local Video */}
               <div className="bg-gray-900 rounded-lg relative overflow-hidden aspect-video">
                 <video
@@ -700,9 +753,9 @@ const JoinMeeting: React.FC = () => {
     <div className={`min-h-screen ${themeStyles.background} flex items-center justify-center p-6`}>
       <div className={`max-w-2xl w-full ${themeStyles.card} rounded-2xl p-8 border shadow-lg`}>
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Join Interview</h1>
-          <p className="text-gray-600 dark:text-gray-400">Meeting ID: {meetingId}</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <h1 className={`text-2xl font-bold ${themeStyles.text} mb-2`}>Join Interview</h1>
+          <p className={themeStyles.textSecondary}>Meeting ID: {meetingId}</p>
+          <p className={`text-sm ${themeStyles.textMuted} mt-1`}>
             {participants.length} participant{participants.length !== 1 ? 's' : ''} in meeting
           </p>
         </div>
@@ -710,7 +763,7 @@ const JoinMeeting: React.FC = () => {
         <div className="grid md:grid-cols-2 gap-8">
           {/* Camera Preview */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Camera Preview</h3>
+            <h3 className={`text-lg font-semibold ${themeStyles.text} mb-4`}>Camera Preview</h3>
             <div className="bg-gray-900 rounded-lg aspect-video relative overflow-hidden">
               <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
                 <div className="text-center">
@@ -772,10 +825,10 @@ const JoinMeeting: React.FC = () => {
 
           {/* Join Form */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Your Details</h3>
+            <h3 className={`text-lg font-semibold ${themeStyles.text} mb-4`}>Your Details</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className={`block text-sm font-medium ${themeStyles.textSecondary} mb-2`}>
                   Full Name *
                 </label>
                 <input
@@ -783,13 +836,13 @@ const JoinMeeting: React.FC = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Enter your full name"
-                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 ${themeStyles.text} placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className={`block text-sm font-medium ${themeStyles.textSecondary} mb-2`}>
                   Email (Optional)
                 </label>
                 <input
@@ -797,7 +850,7 @@ const JoinMeeting: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
-                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 ${themeStyles.text} placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                 />
               </div>
 

@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { authenticate } from '../middleware/auth';
 import { adminOnly } from '../middleware/adminOnly';
-import { pool } from '../config/database';
+import { ChatSession, ChatMessage } from '../models';
 
 const router = Router();
 
@@ -21,19 +21,30 @@ router.get('/sessions', authenticate, adminOnly, async (req: Request, res: Respo
   try {
     const userId = (req as any).user.userId;
     
-    const [rows] = await pool.execute(
-      `SELECT cs.*, 
-       (SELECT COUNT(*) FROM chat_messages WHERE session_id = cs.id) as message_count,
-       (SELECT message FROM chat_messages WHERE session_id = cs.id ORDER BY created_at ASC LIMIT 1) as first_message
-       FROM chat_sessions cs 
-       WHERE cs.user_id = ? 
-       ORDER BY cs.updated_at DESC`,
-      [userId]
+    const sessions = await ChatSession.find({ user_id: userId })
+      .sort({ updated_at: -1 })
+      .lean();
+
+    // Get message counts and first messages
+    const sessionsWithDetails = await Promise.all(
+      sessions.map(async (session) => {
+        const messageCount = await ChatMessage.countDocuments({ session_id: session._id });
+        const firstMessage = await ChatMessage.findOne({ session_id: session._id })
+          .sort({ created_at: 1 })
+          .select('message')
+          .lean();
+        
+        return {
+          ...session,
+          message_count: messageCount,
+          first_message: firstMessage?.message || null
+        };
+      })
     );
 
     res.json({
       success: true,
-      sessions: rows
+      sessions: sessionsWithDetails
     });
   } catch (error) {
     console.error('Get sessions error:', error);
@@ -48,19 +59,14 @@ router.get('/sessions/:sessionId/messages', authenticate, adminOnly, async (req:
     const userId = (req as any).user.userId;
 
     // Verify session belongs to user
-    const [sessionRows] = await pool.execute(
-      'SELECT id FROM chat_sessions WHERE id = ? AND user_id = ?',
-      [sessionId, userId]
-    );
-
-    if ((sessionRows as any[]).length === 0) {
+    const session = await ChatSession.findOne({ _id: sessionId, user_id: userId });
+    if (!session) {
       return res.status(404).json({ error: 'Session not found' });
     }
 
-    const [messages] = await pool.execute(
-      'SELECT * FROM chat_messages WHERE session_id = ? ORDER BY created_at ASC',
-      [sessionId]
-    );
+    const messages = await ChatMessage.find({ session_id: sessionId })
+      .sort({ created_at: 1 })
+      .lean();
 
     res.json({
       success: true,
@@ -80,19 +86,19 @@ router.post('/sessions', authenticate, adminOnly, async (req: Request, res: Resp
     
     const sessionTitle = title || (firstMessage ? generateTitle(firstMessage) : 'New Chat');
 
-    const [result] = await pool.execute(
-      'INSERT INTO chat_sessions (user_id, title) VALUES (?, ?)',
-      [userId, sessionTitle]
-    );
+    const session = new ChatSession({
+      user_id: userId,
+      title: sessionTitle
+    });
 
-    const sessionId = (result as any).lastInsertRowid;
+    await session.save();
 
     res.json({
       success: true,
       session: {
-        id: sessionId,
-        title: sessionTitle,
-        created_at: new Date().toISOString()
+        id: session._id,
+        title: session.title,
+        created_at: session.created_at
       }
     });
   } catch (error) {
@@ -107,10 +113,9 @@ router.delete('/sessions/:sessionId', authenticate, adminOnly, async (req: Reque
     const { sessionId } = req.params;
     const userId = (req as any).user.userId;
 
-    await pool.execute(
-      'DELETE FROM chat_sessions WHERE id = ? AND user_id = ?',
-      [sessionId, userId]
-    );
+    // Delete session and its messages
+    await ChatSession.deleteOne({ _id: sessionId, user_id: userId });
+    await ChatMessage.deleteMany({ session_id: sessionId });
 
     res.json({ success: true });
   } catch (error) {
@@ -148,23 +153,20 @@ User Query: ${message}`;
     // Save to database if sessionId provided
     if (sessionId) {
       // Verify session belongs to user
-      const [sessionRows] = await pool.execute(
-        'SELECT id FROM chat_sessions WHERE id = ? AND user_id = ?',
-        [sessionId, userId]
-      );
-
-      if ((sessionRows as any[]).length > 0) {
+      const session = await ChatSession.findOne({ _id: sessionId, user_id: userId });
+      
+      if (session) {
         // Save message and response
-        await pool.execute(
-          'INSERT INTO chat_messages (session_id, message, response) VALUES (?, ?, ?)',
-          [sessionId, message, text]
-        );
+        const chatMessage = new ChatMessage({
+          session_id: sessionId,
+          message,
+          response: text
+        });
+        await chatMessage.save();
 
         // Update session timestamp
-        await pool.execute(
-          'UPDATE chat_sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-          [sessionId]
-        );
+        session.updated_at = new Date();
+        await session.save();
       }
     }
 

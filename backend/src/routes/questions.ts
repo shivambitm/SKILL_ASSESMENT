@@ -1,56 +1,16 @@
 import express from "express";
-import { pool } from "../config/database";
+import { Question, Skill } from "../models";
 import { authenticate, authorize } from "../middleware/auth";
 import { validate, questionSchemas } from "../middleware/validation";
 import { cacheGet, cacheSet, cacheDel } from "../config/redis";
 
 const router = express.Router();
+
 /**
  * @swagger
  * tags:
  *   name: Questions
  *   description: Question management (admin only)
- */
-
-/**
- * @swagger
- * /api/questions/:
- *   get:
- *     summary: Get all questions
- *     tags: [Questions]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *         description: Page number
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *         description: Page size
- *       - in: query
- *         name: skillId
- *         schema:
- *           type: string
- *         description: Filter by skill
- *       - in: query
- *         name: difficulty
- *         schema:
- *           type: string
- *         description: Filter by difficulty
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *         description: Search by question text
- *     responses:
- *       200:
- *         description: List of questions
- *       401:
- *         description: Unauthorized
  */
 
 // Get all questions (Admin only)
@@ -62,69 +22,54 @@ router.get("/", authenticate, authorize(["admin"]), async (req, res) => {
     const difficulty = (req.query.difficulty as string) || "";
     const search = (req.query.search as string) || "";
 
-    const offset = (page - 1) * limit;
-
     // Build query conditions
-    let whereClause = "WHERE 1=1";
-    const queryParams: any[] = [];
-
+    const query: any = {};
+    
     if (skillId) {
-      whereClause += " AND q.skill_id = ?";
-      queryParams.push(skillId);
+      query.skillId = skillId;
     }
 
     if (difficulty) {
-      whereClause += " AND q.difficulty = ?";
-      queryParams.push(difficulty);
+      query.difficulty = difficulty;
     }
 
     if (search) {
-      whereClause += " AND q.question_text LIKE ?";
-      queryParams.push(`%${search}%`);
+      query.questionText = { $regex: search, $options: 'i' };
     }
 
     // Get total count
-    const [countResult] = await pool.execute(
-      `SELECT COUNT(*) as total FROM questions q ${whereClause}`,
-      queryParams
-    );
-    const total = (countResult as any[])[0].total;
+    const total = await Question.countDocuments(query);
 
     // Get questions with skill info
-    const [rows] = await pool.execute(
-      `SELECT q.id, q.skill_id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, 
-              q.correct_answer, q.difficulty, q.points, q.is_active, q.created_at, 
-              s.name as skill_name
-       FROM questions q
-       LEFT JOIN skills s ON q.skill_id = s.id
-       ${whereClause}
-       ORDER BY q.created_at DESC 
-       LIMIT ? OFFSET ?`,
-      [...queryParams, limit, offset]
-    );
+    const questions = await Question.find(query)
+      .populate('skillId', 'name')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
 
-    const questions = (rows as any[]).map((question) => ({
-      id: question.id,
-      skillId: question.skill_id,
-      skillName: question.skill_name,
-      questionText: question.question_text,
+    const formattedQuestions = questions.map((question: any) => ({
+      id: question._id,
+      skillId: question.skillId._id,
+      skillName: question.skillId.name,
+      questionText: question.questionText,
       options: {
-        A: question.option_a,
-        B: question.option_b,
-        C: question.option_c,
-        D: question.option_d,
+        A: question.optionA,
+        B: question.optionB,
+        C: question.optionC,
+        D: question.optionD,
       },
-      correctAnswer: question.correct_answer,
+      correctAnswer: question.correctAnswer,
       difficulty: question.difficulty,
       points: question.points,
-      isActive: question.is_active,
-      createdAt: question.created_at,
+      isActive: question.isActive,
+      createdAt: question.createdAt,
     }));
 
     res.json({
       success: true,
       data: {
-        questions,
+        questions: formattedQuestions,
         pagination: {
           page,
           limit,
@@ -141,46 +86,16 @@ router.get("/", authenticate, authorize(["admin"]), async (req, res) => {
     });
   }
 });
-/**
- * @swagger
- * /api/questions/quiz/{skillId}:
- *   get:
- *     summary: Get quiz questions for a skill
- *     tags: [Questions]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: skillId
- *         required: true
- *         schema:
- *           type: integer
- *         description: Skill ID
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *         description: Number of questions
- *     responses:
- *       200:
- *         description: List of quiz questions
- *       401:
- *         description: Unauthorized
- */
 
 // Get questions for quiz (User)
 router.get("/quiz/:skillId", authenticate, async (req, res) => {
   try {
-    const skillId = parseInt(req.params.skillId);
+    const skillId = req.params.skillId;
     const limit = parseInt(req.query.limit as string) || 10;
 
     // Check if skill exists
-    const [skillCheck] = await pool.execute(
-      "SELECT id FROM skills WHERE id = ? AND is_active = true",
-      [skillId]
-    );
-
-    if ((skillCheck as any[]).length === 0) {
+    const skill = await Skill.findById(skillId).where({ isActive: true });
+    if (!skill) {
       return res.status(404).json({
         success: false,
         message: "Skill not found or inactive",
@@ -188,17 +103,25 @@ router.get("/quiz/:skillId", authenticate, async (req, res) => {
     }
 
     // Get random questions for the skill
-    const [rows] = await pool.execute(
-      `SELECT id, question_text, option_a, option_b, option_c, option_d, difficulty, points
-       FROM questions 
-       WHERE skill_id = ? AND is_active = true 
-       ORDER BY RANDOM() 
-       LIMIT ?`,
-      [skillId, limit]
-    );
+    const questions = await Question.aggregate([
+      { $match: { skill_id: skill._id, is_active: true } },
+      { $sample: { size: limit } },
+      {
+        $project: {
+          _id: 1,
+          question_text: 1,
+          option_a: 1,
+          option_b: 1,
+          option_c: 1,
+          option_d: 1,
+          difficulty: 1,
+          points: 1,
+        }
+      }
+    ]);
 
-    const questions = (rows as any[]).map((question) => ({
-      id: question.id,
+    const formattedQuestions = questions.map((question) => ({
+      id: question._id,
       questionText: question.question_text,
       options: {
         A: question.option_a,
@@ -207,13 +130,13 @@ router.get("/quiz/:skillId", authenticate, async (req, res) => {
         D: question.option_d,
       },
       difficulty: question.difficulty,
-      points: question.points,
+      points: question.points || 1,
     }));
 
     res.json({
       success: true,
       data: {
-        questions,
+        questions: formattedQuestions,
       },
     });
   } catch (error) {
@@ -224,74 +147,40 @@ router.get("/quiz/:skillId", authenticate, async (req, res) => {
     });
   }
 });
-/**
- * @swagger
- * /api/questions/{id}:
- *   get:
- *     summary: Get question by ID
- *     tags: [Questions]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: Question ID
- *     responses:
- *       200:
- *         description: Question details
- *       401:
- *         description: Unauthorized
- *       404:
- *         description: Not found
- */
 
 // Get question by ID (Admin only)
 router.get("/:id", authenticate, authorize(["admin"]), async (req, res) => {
   try {
-    const questionId = parseInt(req.params.id);
+    const question = await Question.findById(req.params.id)
+      .populate('skillId', 'name')
+      .lean();
 
-    const [rows] = await pool.execute(
-      `SELECT q.id, q.skill_id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, 
-              q.correct_answer, q.difficulty, q.points, q.is_active, q.created_at, 
-              s.name as skill_name
-       FROM questions q
-       LEFT JOIN skills s ON q.skill_id = s.id
-       WHERE q.id = ?`,
-      [questionId]
-    );
-
-    const questions = rows as any[];
-    if (questions.length === 0) {
+    if (!question) {
       return res.status(404).json({
         success: false,
         message: "Question not found",
       });
     }
 
-    const question = questions[0];
-
     res.json({
       success: true,
       data: {
         question: {
-          id: question.id,
-          skillId: question.skill_id,
-          skillName: question.skill_name,
-          questionText: question.question_text,
+          id: question._id,
+          skillId: (question.skillId as any)._id,
+          skillName: (question.skillId as any).name,
+          questionText: question.questionText,
           options: {
-            A: question.option_a,
-            B: question.option_b,
-            C: question.option_c,
-            D: question.option_d,
+            A: question.optionA,
+            B: question.optionB,
+            C: question.optionC,
+            D: question.optionD,
           },
-          correctAnswer: question.correct_answer,
+          correctAnswer: question.correctAnswer,
           difficulty: question.difficulty,
           points: question.points,
-          isActive: question.is_active,
-          createdAt: question.created_at,
+          isActive: question.isActive,
+          createdAt: question.createdAt,
         },
       },
     });
@@ -303,47 +192,6 @@ router.get("/:id", authenticate, authorize(["admin"]), async (req, res) => {
     });
   }
 });
-/**
- * @swagger
- * /api/questions/:
- *   post:
- *     summary: Create a new question
- *     tags: [Questions]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               skillId:
- *                 type: integer
- *               questionText:
- *                 type: string
- *               optionA:
- *                 type: string
- *               optionB:
- *                 type: string
- *               optionC:
- *                 type: string
- *               optionD:
- *                 type: string
- *               correctAnswer:
- *                 type: string
- *               difficulty:
- *                 type: string
- *               points:
- *                 type: integer
- *     responses:
- *       201:
- *         description: Question created
- *       400:
- *         description: Validation error
- *       401:
- *         description: Unauthorized
- */
 
 // Create question (Admin only)
 router.post(
@@ -366,12 +214,8 @@ router.post(
       } = req.body;
 
       // Check if skill exists
-      const [skillCheck] = await pool.execute(
-        "SELECT id FROM skills WHERE id = ?",
-        [skillId]
-      );
-
-      if ((skillCheck as any[]).length === 0) {
+      const skill = await Skill.findById(skillId);
+      if (!skill) {
         return res.status(404).json({
           success: false,
           message: "Skill not found",
@@ -379,23 +223,19 @@ router.post(
       }
 
       // Create question
-      const [result] = await pool.execute(
-        `INSERT INTO questions (skill_id, question_text, option_a, option_b, option_c, option_d, correct_answer, difficulty, points) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          skillId,
-          questionText,
-          optionA,
-          optionB,
-          optionC,
-          optionD,
-          correctAnswer,
-          difficulty,
-          points,
-        ]
-      );
+      const question = new Question({
+        skillId,
+        questionText,
+        optionA,
+        optionB,
+        optionC,
+        optionD,
+        correctAnswer,
+        difficulty,
+        points,
+      });
 
-      const questionId = (result as any).lastInsertRowid;
+      await question.save();
 
       // Clear cache
       await cacheDel("questions:*");
@@ -405,7 +245,7 @@ router.post(
         message: "Question created successfully",
         data: {
           question: {
-            id: questionId,
+            id: question._id,
             skillId,
             questionText,
             options: {
@@ -430,56 +270,6 @@ router.post(
     }
   }
 );
-/**
- * @swagger
- * /api/questions/{id}:
- *   put:
- *     summary: Update a question
- *     tags: [Questions]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: Question ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               skillId:
- *                 type: integer
- *               questionText:
- *                 type: string
- *               optionA:
- *                 type: string
- *               optionB:
- *                 type: string
- *               optionC:
- *                 type: string
- *               optionD:
- *                 type: string
- *               correctAnswer:
- *                 type: string
- *               difficulty:
- *                 type: string
- *               points:
- *                 type: integer
- *     responses:
- *       200:
- *         description: Question updated
- *       400:
- *         description: Validation error
- *       401:
- *         description: Unauthorized
- *       404:
- *         description: Not found
- */
 
 // Update question (Admin only)
 router.put(
@@ -489,7 +279,6 @@ router.put(
   validate(questionSchemas.update),
   async (req, res) => {
     try {
-      const questionId = parseInt(req.params.id);
       const {
         skillId,
         questionText,
@@ -504,12 +293,8 @@ router.put(
       } = req.body;
 
       // Check if question exists
-      const [existingQuestions] = await pool.execute(
-        "SELECT id FROM questions WHERE id = ?",
-        [questionId]
-      );
-
-      if ((existingQuestions as any[]).length === 0) {
+      const question = await Question.findById(req.params.id);
+      if (!question) {
         return res.status(404).json({
           success: false,
           message: "Question not found",
@@ -518,12 +303,8 @@ router.put(
 
       // Check if skill exists (if updating skill)
       if (skillId) {
-        const [skillCheck] = await pool.execute(
-          "SELECT id FROM skills WHERE id = ?",
-          [skillId]
-        );
-
-        if ((skillCheck as any[]).length === 0) {
+        const skill = await Skill.findById(skillId);
+        if (!skill) {
           return res.status(404).json({
             success: false,
             message: "Skill not found",
@@ -531,64 +312,19 @@ router.put(
         }
       }
 
-      // Build update query
-      const updateFields = [];
-      const updateValues = [];
+      // Update fields
+      if (skillId !== undefined) question.skillId = skillId;
+      if (questionText !== undefined) question.questionText = questionText;
+      if (optionA !== undefined) question.optionA = optionA;
+      if (optionB !== undefined) question.optionB = optionB;
+      if (optionC !== undefined) question.optionC = optionC;
+      if (optionD !== undefined) question.optionD = optionD;
+      if (correctAnswer !== undefined) question.correctAnswer = correctAnswer;
+      if (difficulty !== undefined) question.difficulty = difficulty;
+      if (points !== undefined) question.points = points;
+      if (typeof isActive === "boolean") question.isActive = isActive;
 
-      if (skillId) {
-        updateFields.push("skill_id = ?");
-        updateValues.push(skillId);
-      }
-      if (questionText) {
-        updateFields.push("question_text = ?");
-        updateValues.push(questionText);
-      }
-      if (optionA) {
-        updateFields.push("option_a = ?");
-        updateValues.push(optionA);
-      }
-      if (optionB) {
-        updateFields.push("option_b = ?");
-        updateValues.push(optionB);
-      }
-      if (optionC) {
-        updateFields.push("option_c = ?");
-        updateValues.push(optionC);
-      }
-      if (optionD) {
-        updateFields.push("option_d = ?");
-        updateValues.push(optionD);
-      }
-      if (correctAnswer) {
-        updateFields.push("correct_answer = ?");
-        updateValues.push(correctAnswer);
-      }
-      if (difficulty) {
-        updateFields.push("difficulty = ?");
-        updateValues.push(difficulty);
-      }
-      if (points) {
-        updateFields.push("points = ?");
-        updateValues.push(points);
-      }
-      if (typeof isActive === "boolean") {
-        updateFields.push("is_active = ?");
-        updateValues.push(isActive);
-      }
-
-      if (updateFields.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: "No fields to update",
-        });
-      }
-
-      updateValues.push(questionId);
-
-      await pool.execute(
-        `UPDATE questions SET ${updateFields.join(", ")} WHERE id = ?`,
-        updateValues
-      );
+      await question.save();
 
       // Clear cache
       await cacheDel("questions:*");
@@ -606,49 +342,20 @@ router.put(
     }
   }
 );
-/**
- * @swagger
- * /api/questions/{id}:
- *   delete:
- *     summary: Delete a question
- *     tags: [Questions]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: Question ID
- *     responses:
- *       200:
- *         description: Question deleted
- *       401:
- *         description: Unauthorized
- *       404:
- *         description: Not found
- */
 
 // Delete question (Admin only)
 router.delete("/:id", authenticate, authorize(["admin"]), async (req, res) => {
   try {
-    const questionId = parseInt(req.params.id);
-
     // Check if question exists
-    const [existingQuestions] = await pool.execute(
-      "SELECT id FROM questions WHERE id = ?",
-      [questionId]
-    );
-
-    if ((existingQuestions as any[]).length === 0) {
+    const question = await Question.findById(req.params.id);
+    if (!question) {
       return res.status(404).json({
         success: false,
         message: "Question not found",
       });
     }
 
-    await pool.execute("DELETE FROM questions WHERE id = ?", [questionId]);
+    await Question.findByIdAndDelete(req.params.id);
 
     // Clear cache
     await cacheDel("questions:*");

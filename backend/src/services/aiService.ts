@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const genAI = process.env.GOOGLE_AI_API_KEY ? new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY) : null;
+console.log("this is whta i got key in env file", genAI);
 const model = genAI ? genAI.getGenerativeModel({ model: 'gemini-pro' }) : null;
 
 export interface GeneratedQuestion {

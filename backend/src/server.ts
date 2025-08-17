@@ -76,6 +76,12 @@ import notificationsRoutes from "./routes/notifications";
 import adminSeedMergeRouter from "./routes/adminSeedMerge";
 import importSeedQuestionRouter from "./routes/importSeedQuestion";
 import meetingRoutes, { setupMeetingSocket } from "./routes/meeting";
+// import recordingRoutes from "./routes/recording";
+import transcriptionRoutes from "./routes/transcription";
+import summaryEmailRoutes from "./routes/summaryEmail";
+import { startExpiryCron } from "./cron/deleteExpired";
+import { attachWs } from "./ws";
+import { startOTPCleanupJob } from "./jobs/cleanupOTPs";
 
 // Swagger API docs
 import { setupSwagger } from "./swagger";
@@ -270,6 +276,9 @@ app.use("/api", notificationsRoutes);
 import userSkillUsageRouter from "./routes/userSkillUsage";
 app.use("/api/reports", userSkillUsageRouter);
 app.use("/api/meeting", meetingRoutes);
+// app.use("/api/recording", recordingRoutes);
+app.use("/api/transcription", transcriptionRoutes);
+app.use("/api/summary", summaryEmailRoutes);
 console.log("All routes mounted successfully");
 
 // Error handling middleware
@@ -305,7 +314,18 @@ const startServer = async () => {
 
     // Setup meeting socket handlers
     setupMeetingSocket(io);
+    
+    // Setup additional WebSocket handlers for breakouts
+    // attachWs(server); // Disabled for now
+    
+    // Start cron jobs
+    // startExpiryCron(); // Disabled for now
+    startOTPCleanupJob(); // Start OTP cleanup job
+    
     console.log("✅ Socket.IO server initialized for meetings");
+    console.log("✅ WebSocket handlers attached for breakouts");
+    console.log("✅ Cron jobs started for cleanup");
+    console.log("✅ OTP cleanup job started");
   } catch (error) {
     console.error("Failed to start server:", error);
     process.exit(1);

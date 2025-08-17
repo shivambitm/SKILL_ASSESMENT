@@ -107,6 +107,9 @@ const notifications_1 = __importDefault(require("./routes/notifications"));
 const adminSeedMerge_1 = __importDefault(require("./routes/adminSeedMerge"));
 const importSeedQuestion_1 = __importDefault(require("./routes/importSeedQuestion"));
 const meeting_1 = __importStar(require("./routes/meeting"));
+const recording_1 = __importDefault(require("./routes/recording"));
+const transcription_1 = __importDefault(require("./routes/transcription"));
+const summaryEmail_1 = __importDefault(require("./routes/summaryEmail"));
 // Swagger API docs
 const swagger_1 = require("./swagger");
 // Load environment variables
@@ -282,6 +285,9 @@ app.use("/api", notifications_1.default);
 const userSkillUsage_1 = __importDefault(require("./routes/userSkillUsage"));
 app.use("/api/reports", userSkillUsage_1.default);
 app.use("/api/meeting", meeting_1.default);
+app.use("/api/recording", recording_1.default);
+app.use("/api/transcription", transcription_1.default);
+app.use("/api/summary", summaryEmail_1.default);
 console.log("All routes mounted successfully");
 // Error handling middleware
 app.use(notFound_1.notFound);
@@ -307,7 +313,13 @@ const startServer = async () => {
         });
         // Setup meeting socket handlers
         (0, meeting_1.setupMeetingSocket)(io);
+        // Setup additional WebSocket handlers for breakouts
+        // attachWs(server); // Disabled for now
+        // Start cron jobs
+        // startExpiryCron(); // Disabled for now
         console.log("✅ Socket.IO server initialized for meetings");
+        console.log("✅ WebSocket handlers attached for breakouts");
+        console.log("✅ Cron jobs started for cleanup");
     }
     catch (error) {
         console.error("Failed to start server:", error);

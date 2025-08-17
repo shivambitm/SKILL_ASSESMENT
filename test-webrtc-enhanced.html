@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced WebRTC Test - Skill Assessment Portal</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .test-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status.pass { background: #10b981; }
+        .status.fail { background: #ef4444; }
+        .status.pending { background: #f59e0b; }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .video-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .video-item {
+            position: relative;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            aspect-ratio: 16/9;
+        }
+        .video-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .video-label {
+            position: absolute;
+            bottom: 5px;
+            left: 5px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .screen-share {
+            grid-column: 1 / -1;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            position: relative;
+        }
+        .screen-share video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .log {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .feature-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+        .chat-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .chat-messages {
+            height: 150px;
+            overflow-y: auto;
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .chat-input {
+            display: flex;
+            gap: 10px;
+        }
+        .chat-input input {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        .chat-input input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        .active-speaker {
+            border: 3px solid #10b981;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+        }
+        .hand-raised {
+            border: 3px solid #f59e0b;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+        }
+        .screen-sharing {
+            border: 3px solid #3b82f6;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎥 Enhanced WebRTC Test Suite</h1>
+            <p>Comprehensive testing for the Skill Assessment Portal's virtual interview features</p>
+        </div>
+
+        <!-- Connection Test -->
+        <div class="test-section">
+            <h2>🔗 Connection & Setup</h2>
+            <div class="test-grid">
+                <div class="test-item">
+                    <h3>Server Connection <span id="connection-status" class="status pending">PENDING</span></h3>
+                    <button class="btn" onclick="testConnection()">Test Connection</button>
+                    <p>Tests connection to WebRTC server and Socket.IO functionality</p>
+                </div>
+                <div class="test-item">
+                    <h3>Media Access <span id="media-status" class="status pending">PENDING</span></h3>
+                    <button class="btn" onclick="testMediaAccess()">Test Camera & Mic</button>
+                    <p>Verifies camera and microphone permissions and access</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Core Features Test -->
+        <div class="test-section">
+            <h2>🎯 Core WebRTC Features</h2>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <span>📹 Video Streaming</span>
+                    <span id="video-streaming" class="status pending">PENDING</span>
+                </div>
+                <div class="feature-item">
+                    <span>🎤 Audio Streaming</span>
+                    <span id="audio-streaming" class="status pending">PENDING</span>
+                </div>
+                <div class="feature-item">
+                    <span>🖥️ Screen Sharing</span>
+                    <span id="screen-sharing" class="status pending">PENDING</span>
+                </div>
+                <div class="feature-item">
+                    <span>💬 Real-time Chat</span>
+                    <span id="chat-feature" class="status pending">PENDING</span>
+                </div>
+                <div class="feature-item">
+                    <span>✋ Raise Hand</span>
+                    <span id="raise-hand" class="status pending">PENDING</span>
+                </div>
+                <div class="feature-item">
+                    <span>🔊 Voice Activity Detection</span>
+                    <span id="voice-activity" class="status pending">PENDING</span>
+                </div>
+                <div class="feature-item">
+                    <span>👥 Multi-participant Support</span>
+                    <span id="multi-participant" class="status pending">PENDING</span>
+                </div>
+                <div class="feature-item">
+                    <span>🎛️ Meeting Controls</span>
+                    <span id="meeting-controls" class="status pending">PENDING</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Video Display Area -->
+        <div class="test-section">
+            <h2>📺 Video Streams</h2>
+            <div id="screen-share-container" class="screen-share" style="display: none;">
+                <video id="screen-share-video" autoplay playsinline></video>
+                <div class="video-label">Screen Share</div>
+            </div>
+            <div class="video-container" id="video-container">
+                <div class="video-item">
+                    <video id="local-video" autoplay muted playsinline></video>
+                    <div class="video-label">You (Local)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Test -->
+        <div class="test-section">
+            <h2>💬 Chat System</h2>
+            <div class="chat-container">
+                <div class="chat-messages" id="chat-messages">
+                    <div style="color: #888; font-style: italic;">Chat messages will appear here...</div>
+                </div>
+                <div class="chat-input">
+                    <input type="text" id="chat-input" placeholder="Type a message..." onkeypress="handleChatKeyPress(event)">
+                    <button class="btn" onclick="sendChatMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="test-section">
+            <h2>🎛️ Meeting Controls</h2>
+            <div style="text-align: center;">
+                <button class="btn" id="video-btn" onclick="toggleVideo()">📹 Video ON</button>
+                <button class="btn" id="audio-btn" onclick="toggleAudio()">🎤 Audio ON</button>
+                <button class="btn" id="screen-btn" onclick="toggleScreenShare()">🖥️ Share Screen</button>
+                <button class="btn" id="hand-btn" onclick="toggleHand()">✋ Raise Hand</button>
+                <button class="btn" onclick="createMeeting()">🏁 Create Meeting</button>
+                <button class="btn" onclick="joinMeeting()">🚪 Join Meeting</button>
+                <button class="btn" onclick="leaveMeeting()" style="background: #ef4444;">📞 Leave</button>
+            </div>
+        </div>
+
+        <!-- Test Results -->
+        <div class="test-section">
+            <h2>📊 Test Results & Logs</h2>
+            <div class="log" id="test-log"></div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Test state
+        let socket = null;
+        let localStream = null;
+        let screenStream = null;
+        let peerConnections = new Map();
+        let remoteStreams = new Map();
+        let meetingId = null;
+        let isVideoEnabled = true;
+        let isAudioEnabled = true;
+        let isScreenSharing = false;
+        let isHandRaised = false;
+        let activeSpeaker = null;
+
+        // Logging function
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('test-log');
+            const color = type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : '#ffffff';
+            logElement.innerHTML += `<div style="color: ${color};">[${timestamp}] ${message}</div>`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(`[WebRTC Test] ${message}`);
+        }
+
+        // Update status indicator
+        function updateStatus(elementId, status) {
+            const element = document.getElementById(elementId);
+            element.className = `status ${status}`;
+            element.textContent = status.toUpperCase();
+        }
+
+        // Test server connection
+        async function testConnection() {
+            try {
+                log('Testing server connection...', 'info');
+                const serverUrl = window.location.origin;
+                
+                socket = io(serverUrl, {
+                    transports: ['websocket', 'polling'],
+                    timeout: 10000
+                });
+
+                socket.on('connect', () => {
+                    log('✅ Connected to WebRTC server successfully', 'success');
+                    updateStatus('connection-status', 'pass');
+                    setupSocketListeners();
+                });
+
+                socket.on('disconnect', () => {
+                    log('❌ Disconnected from server', 'error');
+                    updateStatus('connection-status', 'fail');
+                });
+
+                socket.on('connect_error', (error) => {
+                    log(`❌ Connection error: ${error.message}`, 'error');
+                    updateStatus('connection-status', 'fail');
+                });
+
+            } catch (error) {
+                log(`❌ Connection test failed: ${error.message}`, 'error');
+                updateStatus('connection-status', 'fail');
+            }
+        }
+
+        // Test media access
+        async function testMediaAccess() {
+            try {
+                log('Testing camera and microphone access...', 'info');
+                
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    },
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+
+                const localVideo = document.getElementById('local-video');
+                localVideo.srcObject = localStream;
+
+                const videoTracks = localStream.getVideoTracks();
+                const audioTracks = localStream.getAudioTracks();
+
+                log(`✅ Media access granted - Video: ${videoTracks.length}, Audio: ${audioTracks.length}`, 'success');
+                updateStatus('media-status', 'pass');
+                updateStatus('video-streaming', 'pass');
+                updateStatus('audio-streaming', 'pass');
+
+                // Setup voice activity detection
+                setupVoiceActivityDetection();
+
+            } catch (error) {
+                log(`❌ Media access failed: ${error.message}`, 'error');
+                updateStatus('media-status', 'fail');
+                
+                if (error.name === 'NotAllowedError') {
+                    log('Please allow camera and microphone access and try again', 'error');
+                }
+            }
+        }
+
+        // Setup voice activity detection
+        function setupVoiceActivityDetection() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createMediaStreamSource(localStream);
+                const analyser = audioContext.createAnalyser();
+                
+                analyser.fftSize = 256;
+                analyser.smoothingTimeConstant = 0.8;
+                source.connect(analyser);
+
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                
+                let isSpeaking = false;
+                const SPEAKING_THRESHOLD = 30;
+                
+                function checkVoiceActivity() {
+                    analyser.getByteFrequencyData(dataArray);
+                    const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
+                    
+                    const wasSpeaking = isSpeaking;
+                    isSpeaking = average > SPEAKING_THRESHOLD;
+                    
+                    if (isSpeaking !== wasSpeaking) {
+                        if (isSpeaking) {
+                            log(`🎤 Voice activity detected (level: ${average.toFixed(1)})`, 'success');
+                            document.getElementById('local-video').parentElement.classList.add('active-speaker');
+                            activeSpeaker = 'local';
+                        } else {
+                            document.getElementById('local-video').parentElement.classList.remove('active-speaker');
+                            activeSpeaker = null;
+                        }
+                        
+                        if (socket && meetingId) {
+                            socket.emit('voice-activity', {
+                                meetingId,
+                                isActive: isSpeaking,
+                                audioLevel: average
+                            });
+                        }
+                    }
+                    
+                    requestAnimationFrame(checkVoiceActivity);
+                }
+                
+                checkVoiceActivity();
+                updateStatus('voice-activity', 'pass');
+                log('✅ Voice activity detection setup complete', 'success');
+                
+            } catch (error) {
+                log(`⚠️ Voice activity detection setup failed: ${error.message}`, 'error');
+                updateStatus('voice-activity', 'fail');
+            }
+        }
+
+        // Setup socket listeners
+        function setupSocketListeners() {
+            socket.on('meeting-joined', ({ participants, meetingId: id }) => {
+                meetingId = id;
+                log(`✅ Joined meeting ${meetingId} with ${participants.length} participants`, 'success');
+                updateStatus('multi-participant', 'pass');
+            });
+
+            socket.on('user-joined', ({ participant }) => {
+                log(`👤 ${participant.name} joined the meeting`, 'info');
+                createRemoteVideo(participant.id, participant.name);
+            });
+
+            socket.on('user-left', ({ participantName }) => {
+                log(`👋 ${participantName} left the meeting`, 'info');
+            });
+
+            socket.on('new-message', (message) => {
+                displayChatMessage(message);
+                updateStatus('chat-feature', 'pass');
+            });
+
+            socket.on('participant-hand-raised', ({ participantName, raised }) => {
+                log(`✋ ${participantName} ${raised ? 'raised' : 'lowered'} hand`, 'info');
+                updateStatus('raise-hand', 'pass');
+            });
+
+            socket.on('participant-screen-share', ({ participantName, enabled }) => {
+                log(`🖥️ ${participantName} ${enabled ? 'started' : 'stopped'} screen sharing`, 'info');
+                updateStatus('screen-sharing', 'pass');
+            });
+
+            socket.on('voice-activity', ({ participantName, isActive }) => {
+                if (isActive) {
+                    log(`🔊 ${participantName} is speaking`, 'info');
+                }
+            });
+
+            socket.on('active-speaker-changed', ({ participantName }) => {
+                log(`🎤 Active speaker: ${participantName || 'None'}`, 'info');
+            });
+        }
+
+        // Create remote video element
+        function createRemoteVideo(participantId, participantName) {
+            const videoContainer = document.getElementById('video-container');
+            const videoItem = document.createElement('div');
+            videoItem.className = 'video-item';
+            videoItem.id = `video-${participantId}`;
+            
+            const video = document.createElement('video');
+            video.autoplay = true;
+            video.playsInline = true;
+            video.id = `remote-video-${participantId}`;
+            
+            const label = document.createElement('div');
+            label.className = 'video-label';
+            label.textContent = participantName;
+            
+            videoItem.appendChild(video);
+            videoItem.appendChild(label);
+            videoContainer.appendChild(videoItem);
+        }
+
+        // Meeting controls
+        function toggleVideo() {
+            isVideoEnabled = !isVideoEnabled;
+            const btn = document.getElementById('video-btn');
+            
+            if (localStream) {
+                const videoTrack = localStream.getVideoTracks()[0];
+                if (videoTrack) {
+                    videoTrack.enabled = isVideoEnabled;
+                }
+            }
+            
+            btn.textContent = isVideoEnabled ? '📹 Video ON' : '📹 Video OFF';
+            btn.style.background = isVideoEnabled ? '' : '#ef4444';
+            
+            if (socket && meetingId) {
+                socket.emit('toggle-video', { meetingId, enabled: isVideoEnabled });
+            }
+            
+            log(`📹 Video ${isVideoEnabled ? 'enabled' : 'disabled'}`, 'info');
+            updateStatus('meeting-controls', 'pass');
+        }
+
+        function toggleAudio() {
+            isAudioEnabled = !isAudioEnabled;
+            const btn = document.getElementById('audio-btn');
+            
+            if (localStream) {
+                const audioTrack = localStream.getAudioTracks()[0];
+                if (audioTrack) {
+                    audioTrack.enabled = isAudioEnabled;
+                }
+            }
+            
+            btn.textContent = isAudioEnabled ? '🎤 Audio ON' : '🎤 Audio OFF';
+            btn.style.background = isAudioEnabled ? '' : '#ef4444';
+            
+            if (socket && meetingId) {
+                socket.emit('toggle-audio', { meetingId, enabled: isAudioEnabled });
+            }
+            
+            log(`🎤 Audio ${isAudioEnabled ? 'enabled' : 'disabled'}`, 'info');
+            updateStatus('meeting-controls', 'pass');
+        }
+
+        async function toggleScreenShare() {
+            const btn = document.getElementById('screen-btn');
+            const screenContainer = document.getElementById('screen-share-container');
+            const screenVideo = document.getElementById('screen-share-video');
+            
+            if (isScreenSharing) {
+                // Stop screen sharing
+                if (screenStream) {
+                    screenStream.getTracks().forEach(track => track.stop());
+                    screenStream = null;
+                }
+                
+                screenContainer.style.display = 'none';
+                screenVideo.srcObject = null;
+                isScreenSharing = false;
+                btn.textContent = '🖥️ Share Screen';
+                btn.style.background = '';
+                
+                log('🛑 Screen sharing stopped', 'info');
+                
+            } else {
+                // Start screen sharing
+                try {
+                    screenStream = await navigator.mediaDevices.getDisplayMedia({
+                        video: {
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 }
+                        },
+                        audio: true
+                    });
+                    
+                    screenVideo.srcObject = screenStream;
+                    screenContainer.style.display = 'block';
+                    isScreenSharing = true;
+                    btn.textContent = '🛑 Stop Sharing';
+                    btn.style.background = '#3b82f6';
+                    
+                    // Handle screen share end
+                    screenStream.getVideoTracks()[0].onended = () => {
+                        toggleScreenShare();
+                    };
+                    
+                    log('✅ Screen sharing started', 'success');
+                    updateStatus('screen-sharing', 'pass');
+                    
+                } catch (error) {
+                    log(`❌ Screen sharing failed: ${error.message}`, 'error');
+                    updateStatus('screen-sharing', 'fail');
+                }
+            }
+            
+            if (socket && meetingId) {
+                socket.emit('toggle-screen-share', { meetingId, enabled: isScreenSharing });
+            }
+        }
+
+        function toggleHand() {
+            isHandRaised = !isHandRaised;
+            const btn = document.getElementById('hand-btn');
+            const localVideoContainer = document.getElementById('local-video').parentElement;
+            
+            btn.textContent = isHandRaised ? '✋ Hand Raised' : '✋ Raise Hand';
+            btn.style.background = isHandRaised ? '#f59e0b' : '';
+            
+            if (isHandRaised) {
+                localVideoContainer.classList.add('hand-raised');
+            } else {
+                localVideoContainer.classList.remove('hand-raised');
+            }
+            
+            if (socket && meetingId) {
+                socket.emit('raise-hand', { meetingId, raised: isHandRaised });
+            }
+            
+            log(`✋ Hand ${isHandRaised ? 'raised' : 'lowered'}`, 'info');
+            updateStatus('raise-hand', 'pass');
+        }
+
+        // Meeting management
+        async function createMeeting() {
+            try {
+                meetingId = Math.random().toString(36).substring(2, 10).toUpperCase();
+                
+                const response = await fetch('/api/meeting/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token') || 'test-token'}`
+                    },
+                    body: JSON.stringify({ meetingId })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Meeting created: ${data.meetingId}`, 'success');
+                    
+                    // Auto-join the meeting
+                    if (socket && localStream) {
+                        socket.emit('join-meeting', {
+                            meetingId,
+                            userInfo: {
+                                name: 'Test Host',
+                                email: 'test@example.com',
+                                isHost: true
+                            }
+                        });
+                    }
+                } else {
+                    throw new Error('Failed to create meeting');
+                }
+                
+            } catch (error) {
+                log(`❌ Failed to create meeting: ${error.message}`, 'error');
+            }
+        }
+
+        function joinMeeting() {
+            if (!socket || !localStream) {
+                log('❌ Please test connection and media access first', 'error');
+                return;
+            }
+            
+            const testMeetingId = prompt('Enter meeting ID (or leave empty for test meeting):') || 'TEST123';
+            
+            socket.emit('join-meeting', {
+                meetingId: testMeetingId,
+                userInfo: {
+                    name: 'Test Participant',
+                    email: 'participant@example.com',
+                    isHost: false
+                }
+            });
+            
+            log(`🚪 Attempting to join meeting: ${testMeetingId}`, 'info');
+        }
+
+        function leaveMeeting() {
+            if (socket && meetingId) {
+                socket.emit('leave-meeting', { meetingId });
+                log('👋 Left the meeting', 'info');
+                meetingId = null;
+            }
+            
+            // Clean up streams
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            
+            if (screenStream) {
+                screenStream.getTracks().forEach(track => track.stop());
+                screenStream = null;
+            }
+            
+            // Reset UI
+            document.getElementById('local-video').srcObject = null;
+            document.getElementById('screen-share-container').style.display = 'none';
+            document.getElementById('video-container').innerHTML = `
+                <div class="video-item">
+                    <video id="local-video" autoplay muted playsinline></video>
+                    <div class="video-label">You (Local)</div>
+                </div>
+            `;
+        }
+
+        // Chat functions
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            
+            if (message && socket && meetingId) {
+                socket.emit('send-message', { meetingId, message });
+                input.value = '';
+                log(`💬 Sent message: ${message}`, 'info');
+            }
+        }
+
+        function handleChatKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendChatMessage();
+            }
+        }
+
+        function displayChatMessage(message) {
+            const chatMessages = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.innerHTML = `
+                <strong>${message.sender}:</strong> ${message.message}
+                <small style="color: #888; margin-left: 10px;">
+                    ${new Date(message.timestamp).toLocaleTimeString()}
+                </small>
+            `;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Auto-run basic tests on page load
+        window.addEventListener('load', () => {
+            log('🚀 WebRTC Test Suite loaded', 'info');
+            log('Click "Test Connection" and "Test Camera & Mic" to begin', 'info');
+            
+            // Check browser compatibility
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                log('❌ Browser does not support WebRTC', 'error');
+                updateStatus('media-status', 'fail');
+            }
+            
+            if (!navigator.mediaDevices.getDisplayMedia) {
+                log('⚠️ Browser does not support screen sharing', 'error');
+                updateStatus('screen-sharing', 'fail');
+            }
+        });
+    </script>
+</body>
+</html>

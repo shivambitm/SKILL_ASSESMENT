@@ -20,7 +20,8 @@ interface Question {
 }
 
 interface Skill {
-  id: number;
+  id?: string;
+  _id?: string;
   name: string;
   description: string;
   questions: Question[];
@@ -131,7 +132,7 @@ const AdminQuestions: React.FC = () => {
   const handleEditSave = async () => {
     if (!editSkill) return;
     try {
-      await skillsApi.updateSkill(editSkill.id, editForm);
+      await skillsApi.updateSkill(editSkill._id || editSkill.id, editForm);
       showSuccess(`Skill "${editForm.name}" updated successfully!`);
       setShowSkillModal(false);
       setEditSkill(null);
@@ -141,7 +142,7 @@ const AdminQuestions: React.FC = () => {
     }
   };
   
-  const handleDeleteSkill = async (id: number) => {
+  const handleDeleteSkill = async (id: string) => {
     if (!window.confirm("Delete this skill and all its questions?")) return;
     try {
       await skillsApi.deleteSkill(id);
@@ -187,7 +188,12 @@ const AdminQuestions: React.FC = () => {
   
   const handleQSave = async () => {
     setQError("");
-    if (!selectedSkill) return;
+    console.log('🔍 Selected skill:', selectedSkill);
+    if (!selectedSkill) {
+      console.log('❌ No skill selected');
+      setQError('Please select a skill first');
+      return;
+    }
     if (
       !qForm.question_text.trim() ||
       !qForm.option_a.trim() ||
@@ -202,14 +208,69 @@ const AdminQuestions: React.FC = () => {
     }
     try {
       if (isAddQ) {
-        await adminApi.addQuestion({
-          skill_id: selectedSkill.id,
+        const questionData = {
+          skill_id: selectedSkill._id || selectedSkill.id,
           ...qForm,
-        });
+        };
+        console.log('📤 Sending question data:', questionData);
+        const response = await adminApi.addQuestion(questionData);
+        
+        // Add the new question to the current skill's questions
+        const newQuestion = {
+          id: response.data.data.id,
+          ...qForm,
+          difficulty: qForm.difficulty,
+          is_active: qForm.is_active
+        };
+        
+        // Update the selected skill with the new question
+        const updatedSkill = {
+          ...selectedSkill,
+          questions: [...(selectedSkill.questions || []), newQuestion]
+        };
+        
+        // Update skills array
+        const updatedSkills = skills.map(skill => 
+          (skill._id || skill.id) === (selectedSkill._id || selectedSkill.id) 
+            ? updatedSkill 
+            : skill
+        );
+        
+        setSkills(updatedSkills);
+        setFilteredSkills(updatedSkills);
+        setSelectedSkill(updatedSkill);
+        setFilteredQuestions(updatedSkill.questions);
+        
         showSuccess("Question added successfully!");
         setSuccessMsg("Question added successfully.");
       } else if (editQ) {
         await adminApi.updateQuestion(editQ.id, qForm);
+        
+        if (selectedSkill) {
+          // Update the question in the current skill's questions
+          const updatedQuestions = selectedSkill.questions.map(q => 
+            q.id === editQ.id ? { ...q, ...qForm } : q
+          );
+          
+          // Update the selected skill
+          const updatedSkill = {
+            ...selectedSkill,
+            questions: updatedQuestions
+          };
+          
+          // Update skills array
+          const updatedSkills = skills.map(skill => 
+            (skill._id || skill.id) === (selectedSkill._id || selectedSkill.id) 
+              ? updatedSkill 
+              : skill
+          );
+          
+          setSkills(updatedSkills);
+          setFilteredSkills(updatedSkills);
+          setSelectedSkill(updatedSkill);
+          setFilteredQuestions(updatedQuestions);
+        }
+        
         showSuccess("Question updated successfully!");
         setSuccessMsg("Question updated successfully.");
       }
@@ -225,7 +286,6 @@ const AdminQuestions: React.FC = () => {
         difficulty: "easy",
         is_active: 1,
       });
-      fetchSkills();
     } catch {
       const errorMsg = "Failed to save question.";
       showError(errorMsg);
@@ -238,8 +298,31 @@ const AdminQuestions: React.FC = () => {
     if (!window.confirm("Delete this question?")) return;
     try {
       await adminApi.deleteQuestion(id);
+      
+      if (selectedSkill) {
+        // Remove the question from the current skill's questions
+        const updatedQuestions = selectedSkill.questions.filter(q => q.id !== id);
+        
+        // Update the selected skill
+        const updatedSkill = {
+          ...selectedSkill,
+          questions: updatedQuestions
+        };
+        
+        // Update skills array
+        const updatedSkills = skills.map(skill => 
+          (skill._id || skill.id) === (selectedSkill._id || selectedSkill.id) 
+            ? updatedSkill 
+            : skill
+        );
+        
+        setSkills(updatedSkills);
+        setFilteredSkills(updatedSkills);
+        setSelectedSkill(updatedSkill);
+        setFilteredQuestions(updatedQuestions);
+      }
+      
       showSuccess("Question deleted successfully!");
-      fetchSkills();
     } catch {
       showError("Failed to delete question");
     }
@@ -280,9 +363,9 @@ const AdminQuestions: React.FC = () => {
           <div className="space-y-3">
             {filteredSkills.map((skill) => (
               <Card
-                key={skill.id}
+                key={skill._id || skill.id}
                 className={`p-4 cursor-pointer border-2 transition-all duration-200 ${
-                  selectedSkill && selectedSkill.id === skill.id
+                  selectedSkill && (selectedSkill._id || selectedSkill.id) === (skill._id || skill.id)
                     ? "border-blue-500 bg-blue-50"
                     : "border-transparent hover:border-blue-300"
                 }`}
@@ -317,7 +400,7 @@ const AdminQuestions: React.FC = () => {
                       variant="danger"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeleteSkill(skill.id);
+                        handleDeleteSkill(skill._id || skill.id);
                       }}
                     >
                       Delete
@@ -368,7 +451,7 @@ const AdminQuestions: React.FC = () => {
           <div className="space-y-3">
             {filteredQuestions.map((q, idx) => (
               <Card
-                key={q.id ? q.id : `seed-${idx}`}
+                key={q.id ? `question-${q.id}` : `seed-${idx}`}
                 className={`p-4 border shadow-sm ${
                   q.isSeedOnly
                     ? "bg-yellow-50 border-yellow-300"

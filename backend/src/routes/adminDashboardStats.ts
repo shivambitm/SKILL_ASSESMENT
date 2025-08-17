@@ -1,28 +1,23 @@
 import express from "express";
-import { pool } from "../config/database";
+import { User, Skill, QuizAttempt } from "../models";
 
 const router = express.Router();
 
 router.get("/summary", async (req, res) => {
   try {
     // Total users (non-admin, active)
-    const [userRows]: any = await pool.execute(
-      `SELECT COUNT(*) as total_users FROM users WHERE is_active = true AND role = 'user'`
-    );
-    const totalUsers = userRows[0]?.total_users || 0;
+    const totalUsers = await User.countDocuments({ isActive: true, role: 'user' });
 
     // Total quizzes (all quiz attempts)
-    const [quizRows]: any = await pool.execute(
-      `SELECT COUNT(*) as total_quizzes FROM quiz_attempts WHERE completed_at IS NOT NULL`
-    );
-    const totalQuizzes = quizRows[0]?.total_quizzes || 0;
+    const totalQuizzes = await QuizAttempt.countDocuments({ completed_at: { $ne: null } });
 
     // Average score (across all quiz attempts)
-    const [scoreRows]: any = await pool.execute(
-      `SELECT AVG(score_percentage) as avg_score FROM quiz_attempts WHERE completed_at IS NOT NULL`
-    );
-    const avgScore = scoreRows[0]?.avg_score
-      ? Math.round(scoreRows[0].avg_score * 100) / 100
+    const avgScoreResult = await QuizAttempt.aggregate([
+      { $match: { completed_at: { $ne: null } } },
+      { $group: { _id: null, avgScore: { $avg: "$score_percentage" } } }
+    ]);
+    const avgScore = avgScoreResult.length > 0 
+      ? Math.round(avgScoreResult[0].avgScore * 100) / 100 
       : 0;
 
     res.json({

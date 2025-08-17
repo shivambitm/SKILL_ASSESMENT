@@ -26,11 +26,11 @@
  * @module QuizRoutes
  * @requires authentication middleware
  * @requires validation middleware
- * @requires database pool for operations
+ * @requires MongoDB models
  */
 
 import express from "express";
-import { pool } from "../config/database";
+import { QuizAttempt, QuizAnswer, Skill, Question } from "../models";
 import { authenticate, CustomRequest } from "../middleware/auth";
 import { validate, quizSchemas } from "../middleware/validation";
 
@@ -68,7 +68,7 @@ router.post("/start", authenticate, async (req: CustomRequest, res) => {
    *               - skillId
    *             properties:
    *               skillId:
-   *                 type: integer
+   *                 type: string
    *                 description: Skill ID to start quiz for
    *     responses:
    *       200:
@@ -89,27 +89,19 @@ router.post("/start", authenticate, async (req: CustomRequest, res) => {
     }
 
     // Check if skill exists
-    const [skillCheck] = await pool.execute(
-      "SELECT id, name FROM skills WHERE id = ? AND is_active = true",
-      [skillId]
-    );
-
-    if ((skillCheck as any[]).length === 0) {
+    const skill = await Skill.findById(skillId).where({ isActive: true });
+    if (!skill) {
       return res.status(404).json({
         success: false,
         message: "Skill not found or inactive",
       });
     }
 
-    const skill = (skillCheck as any[])[0];
-
     // Get question count for this skill
-    const [questionCountResult] = await pool.execute(
-      "SELECT COUNT(*) as count FROM questions WHERE skill_id = ? AND is_active = true",
-      [skillId]
-    );
-
-    const questionCount = (questionCountResult as any[])[0].count;
+    const questionCount = await Question.countDocuments({ 
+      skillId: skill._id, 
+      isActive: true 
+    });
 
     if (questionCount === 0) {
       return res.status(400).json({
@@ -119,24 +111,27 @@ router.post("/start", authenticate, async (req: CustomRequest, res) => {
     }
 
     // Create quiz attempt
-    const [result] = await pool.execute(
-      "INSERT INTO quiz_attempts (user_id, skill_id, total_questions, correct_answers, score_percentage) VALUES (?, ?, ?, 0, 0)",
-      [req.user!.userId, skillId, questionCount]
-    );
+    const quizAttempt = new QuizAttempt({
+      userId: req.user!.userId,
+      skillId: skill._id,
+      totalQuestions: questionCount,
+      correctAnswers: 0,
+      score: 0,
+    });
 
-    const quizAttemptId = (result as any).lastInsertRowid;
+    await quizAttempt.save();
 
     res.status(201).json({
       success: true,
       message: "Quiz started successfully",
       data: {
         quizAttempt: {
-          id: quizAttemptId,
+          id: quizAttempt._id,
           userId: req.user!.userId,
-          skillId,
+          skillId: skill._id,
           skillName: skill.name,
           totalQuestions: questionCount,
-          startedAt: new Date(),
+          startedAt: quizAttempt.createdAt,
         },
       },
     });
@@ -156,13 +151,7 @@ router.post(
   validate(quizSchemas.submitAnswer),
   async (req: CustomRequest, res) => {
     try {
-      let { quizAttemptId, questionId, selectedAnswer, timeTaken } = req.body;
-
-      // Type safety for SQLite
-      quizAttemptId = Number(quizAttemptId);
-      questionId = Number(questionId);
-      selectedAnswer = String(selectedAnswer);
-      timeTaken = Number(timeTaken);
+      const { quizAttemptId, questionId, selectedAnswer, timeTaken } = req.body;
 
       console.log("Submit answer request:", {
         quizAttemptId,
@@ -170,30 +159,22 @@ router.post(
         selectedAnswer,
         timeTaken,
         userId: req.user?.userId,
-        types: {
-          quizAttemptId: typeof quizAttemptId,
-          questionId: typeof questionId,
-          selectedAnswer: typeof selectedAnswer,
-          timeTaken: typeof timeTaken,
-        },
       });
 
       // Check if quiz attempt exists and belongs to user
-      const [quizCheck] = await pool.execute(
-        "SELECT id, user_id, completed_at FROM quiz_attempts WHERE id = ? AND user_id = ?",
-        [quizAttemptId, req.user!.userId]
-      );
+      const quizAttempt = await QuizAttempt.findOne({
+        _id: quizAttemptId,
+        userId: req.user!.userId,
+      });
 
-      if ((quizCheck as any[]).length === 0) {
+      if (!quizAttempt) {
         return res.status(404).json({
           success: false,
           message: "Quiz attempt not found",
         });
       }
 
-      const quizAttempt = (quizCheck as any[])[0];
-
-      if (quizAttempt.completed_at) {
+      if (quizAttempt.isCompleted) {
         return res.status(400).json({
           success: false,
           message: "Quiz has already been completed",
@@ -201,54 +182,46 @@ router.post(
       }
 
       // Check if question exists and get correct answer
-      const [questionCheck] = await pool.execute(
-        "SELECT id, correct_answer FROM questions WHERE id = ?",
-        [questionId]
-      );
-
-      if ((questionCheck as any[]).length === 0) {
+      const question = await Question.findById(questionId);
+      if (!question) {
         return res.status(404).json({
           success: false,
           message: "Question not found",
         });
       }
 
-      const question = (questionCheck as any[])[0];
-
       // Check if answer already submitted for this question
-      const [existingAnswer] = await pool.execute(
-        "SELECT id FROM quiz_answers WHERE quiz_attempt_id = ? AND question_id = ?",
-        [quizAttemptId, questionId]
-      );
+      const existingAnswer = await QuizAnswer.findOne({
+        quizAttemptId,
+        questionId,
+      });
 
-      if ((existingAnswer as any[]).length > 0) {
+      if (existingAnswer) {
         return res.status(400).json({
           success: false,
           message: "Answer already submitted for this question",
         });
       }
 
-      const isCorrect = selectedAnswer === question.correct_answer;
+      const isCorrect = selectedAnswer === question.correctAnswer;
 
       // Save answer
+      const quizAnswer = new QuizAnswer({
+        quizAttemptId,
+        questionId,
+        selectedAnswer,
+        isCorrect,
+        timeTaken,
+      });
 
-      await pool.execute(
-        "INSERT INTO quiz_answers (quiz_attempt_id, question_id, selected_answer, is_correct, time_taken) VALUES (?, ?, ?, ?, ?)",
-        [
-          quizAttemptId,
-          questionId,
-          selectedAnswer,
-          isCorrect ? 1 : 0,
-          timeTaken,
-        ]
-      );
+      await quizAnswer.save();
 
       res.json({
         success: true,
         message: "Answer submitted successfully",
         data: {
           isCorrect,
-          correctAnswer: question.correct_answer,
+          correctAnswer: question.correctAnswer,
         },
       });
     } catch (error) {
@@ -267,27 +240,19 @@ router.post("/complete", authenticate, async (req: CustomRequest, res) => {
     const { quizAttemptId, timeTaken } = req.body;
 
     // Check if quiz attempt exists and belongs to user
-    const [quizCheck] = await pool.execute(
-      "SELECT id, user_id, total_questions, completed_at FROM quiz_attempts WHERE id = ? AND user_id = ?",
-      [quizAttemptId, req.user!.userId]
-    );
+    const quizAttempt = await QuizAttempt.findOne({
+      _id: quizAttemptId,
+      userId: req.user!.userId,
+    });
 
-    const quizAttempts = quizCheck as {
-      id: number;
-      user_id: number;
-      total_questions: number;
-      completed_at: string | null;
-    }[];
-    if (quizAttempts.length === 0) {
+    if (!quizAttempt) {
       return res.status(404).json({
         success: false,
         message: "Quiz attempt not found",
       });
     }
 
-    const quizAttempt = quizAttempts[0];
-
-    if (quizAttempt.completed_at) {
+    if (quizAttempt.isCompleted) {
       return res.status(400).json({
         success: false,
         message: "Quiz has already been completed",
@@ -295,28 +260,28 @@ router.post("/complete", authenticate, async (req: CustomRequest, res) => {
     }
 
     // Calculate score
-    const [scoreResult] = await pool.execute(
-      "SELECT COUNT(*) as correct_count FROM quiz_answers WHERE quiz_attempt_id = ? AND is_correct = true",
-      [quizAttemptId]
-    );
+    const correctAnswers = await QuizAnswer.countDocuments({
+      quizAttemptId,
+      isCorrect: true,
+    });
 
-    const correctAnswers = (scoreResult as any[])[0].correct_count;
-    const scorePercentage =
-      (correctAnswers / quizAttempt.total_questions) * 100;
+    const scorePercentage = (correctAnswers / quizAttempt.totalQuestions) * 100;
 
     // Update quiz attempt
+    quizAttempt.correctAnswers = correctAnswers;
+    quizAttempt.score = scorePercentage;
+    quizAttempt.timeTaken = timeTaken;
+    quizAttempt.isCompleted = true;
+    quizAttempt.completedAt = new Date();
 
-    await pool.execute(
-      "UPDATE quiz_attempts SET correct_answers = ?, score_percentage = ?, time_taken = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?",
-      [correctAnswers, scorePercentage, timeTaken, quizAttemptId]
-    );
+    await quizAttempt.save();
 
     res.json({
       success: true,
       message: "Quiz completed successfully",
       data: {
         score: {
-          totalQuestions: quizAttempt.total_questions,
+          totalQuestions: quizAttempt.totalQuestions,
           correctAnswers,
           scorePercentage: Math.round(scorePercentage * 100) / 100,
           timeTaken,
@@ -339,52 +304,43 @@ router.get("/history", authenticate, async (req: CustomRequest, res) => {
     const limit = parseInt(req.query.limit as string) || 10;
     const skillId = (req.query.skillId as string) || "";
 
-    const offset = (page - 1) * limit;
-
     // Build query conditions
-    let whereClause = "WHERE qa.user_id = ? AND qa.completed_at IS NOT NULL";
-    const queryParams: any[] = [req.user!.userId];
+    const query: any = {
+      userId: req.user!.userId,
+      isCompleted: true,
+    };
 
     if (skillId) {
-      whereClause += " AND qa.skill_id = ?";
-      queryParams.push(skillId);
+      query.skillId = skillId;
     }
 
     // Get total count
-    const [countResult] = await pool.execute(
-      `SELECT COUNT(*) as total FROM quiz_attempts qa ${whereClause}`,
-      queryParams
-    );
-    const total = (countResult as any[])[0].total;
+    const total = await QuizAttempt.countDocuments(query);
 
     // Get quiz history
-    const [rows] = await pool.execute(
-      `SELECT qa.id, qa.skill_id, qa.total_questions, qa.correct_answers, qa.score_percentage, 
-              qa.time_taken, qa.started_at, qa.completed_at, s.name as skill_name
-       FROM quiz_attempts qa
-       LEFT JOIN skills s ON qa.skill_id = s.id
-       ${whereClause}
-       ORDER BY qa.completed_at DESC 
-       LIMIT ? OFFSET ?`,
-      [...queryParams, limit, offset]
-    );
+    const quizHistory = await QuizAttempt.find(query)
+      .populate('skillId', 'name')
+      .sort({ completedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
 
-    const quizHistory = (rows as any[]).map((quiz) => ({
-      id: quiz.id,
-      skillId: quiz.skill_id,
-      skillName: quiz.skill_name,
-      totalQuestions: quiz.total_questions,
-      correctAnswers: quiz.correct_answers,
-      scorePercentage: quiz.score_percentage,
-      timeTaken: quiz.time_taken,
-      startedAt: quiz.started_at,
-      completedAt: quiz.completed_at,
+    const formattedHistory = quizHistory.map((quiz: any) => ({
+      id: quiz._id,
+      skillId: quiz.skillId._id,
+      skillName: quiz.skillId.name,
+      totalQuestions: quiz.totalQuestions,
+      correctAnswers: quiz.correctAnswers,
+      scorePercentage: quiz.score,
+      timeTaken: quiz.timeTaken,
+      startedAt: quiz.createdAt,
+      completedAt: quiz.completedAt,
     }));
 
     res.json({
       success: true,
       data: {
-        quizHistory,
+        quizHistory: formattedHistory,
         pagination: {
           page,
           limit,
@@ -405,72 +361,61 @@ router.get("/history", authenticate, async (req: CustomRequest, res) => {
 // Get quiz details
 router.get("/:id", authenticate, async (req: CustomRequest, res) => {
   try {
-    const quizAttemptId = parseInt(req.params.id);
+    const quizAttemptId = req.params.id;
 
     // Check if quiz attempt exists and belongs to user (or user is admin)
-    const [quizCheck] = await pool.execute(
-      'SELECT id, user_id, skill_id, total_questions, correct_answers, score_percentage, time_taken, started_at, completed_at FROM quiz_attempts WHERE id = ? AND (user_id = ? OR ? = "admin")',
-      [quizAttemptId, req.user!.userId, req.user!.role]
-    );
+    const query: any = { _id: quizAttemptId };
+    if (req.user!.role !== "admin") {
+      query.userId = req.user!.userId;
+    }
 
-    if ((quizCheck as any[]).length === 0) {
+    const quizAttempt = await QuizAttempt.findOne(query)
+      .populate('skillId', 'name')
+      .lean();
+
+    if (!quizAttempt) {
       return res.status(404).json({
         success: false,
         message: "Quiz attempt not found",
       });
     }
 
-    const quizAttempt = (quizCheck as any[])[0];
-
-    // Get skill info
-    const [skillResult] = await pool.execute(
-      "SELECT name FROM skills WHERE id = ?",
-      [quizAttempt.skill_id]
-    );
-
-    const skillName = (skillResult as any[])[0]?.name || "Unknown";
-
     // Get answers with question details
-    const [answersResult] = await pool.execute(
-      `SELECT qa.question_id, qa.selected_answer, qa.is_correct, qa.time_taken,
-              q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_answer
-       FROM quiz_answers qa
-       LEFT JOIN questions q ON qa.question_id = q.id
-       WHERE qa.quiz_attempt_id = ?
-       ORDER BY qa.created_at`,
-      [quizAttemptId]
-    );
+    const answers = await QuizAnswer.find({ quizAttemptId })
+      .populate('questionId', 'questionText optionA optionB optionC optionD correctAnswer')
+      .sort({ createdAt: 1 })
+      .lean();
 
-    const answers = (answersResult as any[]).map((answer) => ({
-      questionId: answer.question_id,
-      questionText: answer.question_text,
+    const formattedAnswers = answers.map((answer: any) => ({
+      questionId: answer.questionId._id,
+      questionText: answer.questionId.questionText,
       options: {
-        A: answer.option_a,
-        B: answer.option_b,
-        C: answer.option_c,
-        D: answer.option_d,
+        A: answer.questionId.optionA,
+        B: answer.questionId.optionB,
+        C: answer.questionId.optionC,
+        D: answer.questionId.optionD,
       },
-      selectedAnswer: answer.selected_answer,
-      correctAnswer: answer.correct_answer,
-      isCorrect: answer.is_correct,
-      timeTaken: answer.time_taken,
+      selectedAnswer: answer.selectedAnswer,
+      correctAnswer: answer.questionId.correctAnswer,
+      isCorrect: answer.isCorrect,
+      timeTaken: answer.timeTaken,
     }));
 
     res.json({
       success: true,
       data: {
         quizAttempt: {
-          id: quizAttempt.id,
-          userId: quizAttempt.user_id,
-          skillId: quizAttempt.skill_id,
-          skillName,
-          totalQuestions: quizAttempt.total_questions,
-          correctAnswers: quizAttempt.correct_answers,
-          scorePercentage: quizAttempt.score_percentage,
-          timeTaken: quizAttempt.time_taken,
-          startedAt: quizAttempt.started_at,
-          completedAt: quizAttempt.completed_at,
-          answers,
+          id: quizAttempt._id,
+          userId: quizAttempt.userId,
+          skillId: (quizAttempt.skillId as any)._id,
+          skillName: (quizAttempt.skillId as any).name,
+          totalQuestions: quizAttempt.totalQuestions,
+          correctAnswers: quizAttempt.correctAnswers,
+          scorePercentage: quizAttempt.score,
+          timeTaken: quizAttempt.timeTaken,
+          startedAt: quizAttempt.createdAt,
+          completedAt: quizAttempt.completedAt,
+          answers: formattedAnswers,
         },
       },
     });

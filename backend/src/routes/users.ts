@@ -1,5 +1,5 @@
 import express from "express";
-import { pool } from "../config/database";
+import { User } from "../models";
 import { authenticate, authorize, CustomRequest } from "../middleware/auth";
 
 const router = express.Router();
@@ -50,53 +50,46 @@ router.get(
       const search = (req.query.search as string) || "";
       const role = (req.query.role as string) || "";
 
-      const offset = (page - 1) * limit;
-
       // Build query conditions
-      let whereClause = "WHERE 1=1";
-      const queryParams: any[] = [];
-
+      const query: any = {};
+      
       if (search) {
-        whereClause +=
-          " AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ?)";
-        queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+        query.$or = [
+          { firstName: { $regex: search, $options: 'i' } },
+          { lastName: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } }
+        ];
       }
 
       if (role) {
-        whereClause += " AND role = ?";
-        queryParams.push(role);
+        query.role = role;
       }
 
       // Get total count
-      const [countResult] = await pool.execute(
-        `SELECT COUNT(*) as total FROM users ${whereClause}`,
-        queryParams
-      );
-      const total = (countResult as any[])[0].total;
+      const total = await User.countDocuments(query);
 
       // Get users
-      const [rows] = await pool.execute(
-        `SELECT id, email, first_name, last_name, role, is_active, created_at 
-       FROM users ${whereClause} 
-       ORDER BY created_at DESC 
-       LIMIT ? OFFSET ?`,
-        [...queryParams, limit, offset]
-      );
+      const users = await User.find(query)
+        .select('-password')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean();
 
-      const users = (rows as any[]).map((user) => ({
-        id: user.id,
+      const formattedUsers = users.map((user) => ({
+        id: user._id,
         email: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name,
+        firstName: user.firstName,
+        lastName: user.lastName,
         role: user.role,
-        isActive: user.is_active,
-        createdAt: user.created_at,
+        isActive: user.isActive,
+        createdAt: user.createdAt,
       }));
 
       res.json({
         success: true,
         data: {
-          users,
+          users: formattedUsers,
           pagination: {
             page,
             limit,
@@ -153,7 +146,7 @@ router.put("/profile", authenticate, async (req: CustomRequest, res) => {
      *       404:
      *         description: User not found
      */
-    const userId = (req as any).user.userId;
+    const userId = req.user!.userId;
     const { firstName, lastName, email } = req.body;
 
     // Validate input
@@ -165,12 +158,12 @@ router.put("/profile", authenticate, async (req: CustomRequest, res) => {
     }
 
     // Check if email is already taken by another user
-    const [existingUsers] = await pool.execute(
-      "SELECT id FROM users WHERE email = ? AND id != ?",
-      [email, userId]
-    );
+    const existingUser = await User.findOne({ 
+      email, 
+      _id: { $ne: userId } 
+    });
 
-    if ((existingUsers as any[]).length > 0) {
+    if (existingUser) {
       return res.status(400).json({
         success: false,
         message: "Email is already taken by another user",
@@ -178,39 +171,31 @@ router.put("/profile", authenticate, async (req: CustomRequest, res) => {
     }
 
     // Update user profile
-    await pool.execute(
-      "UPDATE users SET first_name = ?, last_name = ?, email = ? WHERE id = ?",
-      [firstName, lastName, email, userId]
-    );
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { firstName, lastName, email },
+      { new: true }
+    ).select('-password');
 
-    // Get updated user data
-    const [rows] = await pool.execute(
-      "SELECT id, email, first_name, last_name, role, is_active FROM users WHERE id = ?",
-      [userId]
-    );
-
-    if ((rows as any[]).length === 0) {
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: "User not found",
       });
     }
 
-    const user = (rows as any[])[0];
-    const updatedUser = {
-      id: user.id,
-      email: user.email,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      role: user.role,
-      isActive: user.is_active,
-    };
-
     res.json({
       success: true,
       message: "Profile updated successfully",
       data: {
-        user: updatedUser,
+        user: {
+          id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          isActive: user.isActive,
+        },
       },
     });
   } catch (error) {
@@ -233,7 +218,7 @@ router.put("/profile", authenticate, async (req: CustomRequest, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
  *         description: User ID
  *     responses:
  *       200:
@@ -251,34 +236,26 @@ router.get(
   authorize(["admin"]),
   async (req: CustomRequest, res) => {
     try {
-      const userId = parseInt(req.params.id);
+      const user = await User.findById(req.params.id).select('-password');
 
-      const [rows] = await pool.execute(
-        "SELECT id, email, first_name, last_name, role, is_active, created_at FROM users WHERE id = ?",
-        [userId]
-      );
-
-      const users = rows as any[];
-      if (users.length === 0) {
+      if (!user) {
         return res.status(404).json({
           success: false,
           message: "User not found",
         });
       }
 
-      const user = users[0];
-
       res.json({
         success: true,
         data: {
           user: {
-            id: user.id,
+            id: user._id,
             email: user.email,
-            firstName: user.first_name,
-            lastName: user.last_name,
+            firstName: user.firstName,
+            lastName: user.lastName,
             role: user.role,
-            isActive: user.is_active,
-            createdAt: user.created_at,
+            isActive: user.isActive,
+            createdAt: user.createdAt,
           },
         },
       });
@@ -303,7 +280,7 @@ router.get(
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
  *         description: User ID
  *     requestBody:
  *       required: true
@@ -312,9 +289,9 @@ router.get(
  *           schema:
  *             type: object
  *             properties:
- *               first_name:
+ *               firstName:
  *                 type: string
- *               last_name:
+ *               lastName:
  *                 type: string
  *               email:
  *                 type: string
@@ -337,56 +314,24 @@ router.put(
   authorize(["admin"]),
   async (req: CustomRequest, res) => {
     try {
-      const userId = parseInt(req.params.id);
       const { firstName, lastName, role, isActive } = req.body;
 
       // Check if user exists
-      const [existingUsers] = await pool.execute(
-        "SELECT id FROM users WHERE id = ?",
-        [userId]
-      );
-
-      if ((existingUsers as any[]).length === 0) {
+      const user = await User.findById(req.params.id);
+      if (!user) {
         return res.status(404).json({
           success: false,
           message: "User not found",
         });
       }
 
-      // Build update query
-      const updateFields = [];
-      const updateValues = [];
+      // Update fields
+      if (firstName !== undefined) user.firstName = firstName;
+      if (lastName !== undefined) user.lastName = lastName;
+      if (role !== undefined) user.role = role;
+      if (typeof isActive === "boolean") user.isActive = isActive;
 
-      if (firstName) {
-        updateFields.push("first_name = ?");
-        updateValues.push(firstName);
-      }
-      if (lastName) {
-        updateFields.push("last_name = ?");
-        updateValues.push(lastName);
-      }
-      if (role) {
-        updateFields.push("role = ?");
-        updateValues.push(role);
-      }
-      if (typeof isActive === "boolean") {
-        updateFields.push("is_active = ?");
-        updateValues.push(isActive);
-      }
-
-      if (updateFields.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: "No fields to update",
-        });
-      }
-
-      updateValues.push(userId);
-
-      await pool.execute(
-        `UPDATE users SET ${updateFields.join(", ")} WHERE id = ?`,
-        updateValues
-      );
+      await user.save();
 
       res.json({
         success: true,
@@ -413,7 +358,7 @@ router.put(
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
  *         description: User ID
  *     responses:
  *       200:
@@ -431,30 +376,24 @@ router.delete(
   authorize(["admin"]),
   async (req: CustomRequest, res) => {
     try {
-      const userId = parseInt(req.params.id);
-
       // Check if user exists
-      const [existingUsers] = await pool.execute(
-        "SELECT id FROM users WHERE id = ?",
-        [userId]
-      );
-
-      if ((existingUsers as any[]).length === 0) {
+      const user = await User.findById(req.params.id);
+      if (!user) {
         return res.status(404).json({
           success: false,
           message: "User not found",
         });
       }
 
-      // Don't allow deleting the last admin
-      if (req.user!.userId === userId) {
+      // Don't allow deleting your own account
+      if (req.user!.userId.toString() === req.params.id) {
         return res.status(400).json({
           success: false,
           message: "Cannot delete your own account",
         });
       }
 
-      await pool.execute("DELETE FROM users WHERE id = ?", [userId]);
+      await User.findByIdAndDelete(req.params.id);
 
       res.json({
         success: true,
@@ -492,28 +431,23 @@ router.get(
        *         description: Unauthorized
        */
       // Get total users
-      const [totalUsersResult] = await pool.execute(
-        "SELECT COUNT(*) as total FROM users"
-      );
-      const totalUsers = (totalUsersResult as any[])[0].total;
+      const totalUsers = await User.countDocuments();
 
       // Get active users
-      const [activeUsersResult] = await pool.execute(
-        "SELECT COUNT(*) as total FROM users WHERE is_active = true"
-      );
-      const activeUsers = (activeUsersResult as any[])[0].total;
+      const activeUsers = await User.countDocuments({ isActive: true });
 
       // Get users by role
-      const [roleStatsResult] = await pool.execute(
-        "SELECT role, COUNT(*) as count FROM users GROUP BY role"
-      );
-      const roleStats = roleStatsResult as any[];
+      const roleStats = await User.aggregate([
+        { $group: { _id: "$role", count: { $sum: 1 } } },
+        { $project: { role: "$_id", count: 1, _id: 0 } }
+      ]);
 
       // Get recent registrations (last 30 days)
-      const [recentRegistrationsResult] = await pool.execute(
-        "SELECT COUNT(*) as total FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
-      );
-      const recentRegistrations = (recentRegistrationsResult as any[])[0].total;
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const recentRegistrations = await User.countDocuments({
+        createdAt: { $gte: thirtyDaysAgo }
+      });
 
       res.json({
         success: true,
@@ -545,7 +479,7 @@ router.get(
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
  *         description: User ID
  *     responses:
  *       200:
@@ -563,15 +497,9 @@ router.put(
   authorize(["admin"]),
   async (req: CustomRequest, res) => {
     try {
-      const userId = parseInt(req.params.id);
-
       // Check if user exists
-      const [existingUsers] = await pool.execute(
-        "SELECT id FROM users WHERE id = ?",
-        [userId]
-      );
-
-      if ((existingUsers as any[]).length === 0) {
+      const user = await User.findById(req.params.id);
+      if (!user) {
         return res.status(404).json({
           success: false,
           message: "User not found",
@@ -579,10 +507,8 @@ router.put(
       }
 
       // Toggle user status
-      await pool.execute(
-        "UPDATE users SET is_active = NOT is_active WHERE id = ?",
-        [userId]
-      );
+      user.isActive = !user.isActive;
+      await user.save();
 
       res.json({
         success: true,

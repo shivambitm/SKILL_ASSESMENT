@@ -11,7 +11,7 @@ import type { User } from "../types";
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<any>;
   register: (
     email: string,
     password: string,
@@ -76,6 +76,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     try {
       const response = await authApi.login({ email, password });
+      
+      // Check if OTP verification is required
+      if (response.data.data?.requiresOTP) {
+        return response.data.data; // Return OTP requirement info
+      }
+      
+      // Normal login flow
       const { user: userData, token: tokenData } = response.data.data;
 
       localStorage.setItem("token", tokenData);
@@ -83,6 +90,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       setToken(tokenData);
       setUser(userData);
+      
+      return response.data.data;
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || "Login failed";
       throw new Error(errorMessage);
@@ -139,6 +148,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const updateUser = (userData: User) => {
     localStorage.setItem("user", JSON.stringify(userData));
     setUser(userData);
+    
+    // Also update token if it exists in localStorage
+    const storedToken = localStorage.getItem("token");
+    if (storedToken && storedToken !== token) {
+      setToken(storedToken);
+    }
   };
 
   const value = {

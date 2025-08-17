@@ -28,7 +28,7 @@
  */
 import { Request, Response, NextFunction } from "express";
 interface JwtPayload {
-    userId: number;
+    userId: string;
     email: string;
     role: string;
 }

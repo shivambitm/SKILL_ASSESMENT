@@ -16,6 +16,66 @@ const createTransporter = () => {
   });
 };
 
+export const sendLoginOTP = async (email: string, otp: string) => {
+  try {
+    const transporter = createTransporter();
+
+    const mailOptions = {
+      from: `"Skill Assessment Portal" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: '🔐 Your Login Verification Code',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
+          <div style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); padding: 30px; border-radius: 15px; text-align: center; margin-bottom: 30px;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">🔐 Login Verification</h1>
+            <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">Skill Assessment Portal</p>
+          </div>
+          
+          <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <h2 style="color: #374151; margin-top: 0;">Secure Login Verification</h2>
+            <p style="color: #6b7280; font-size: 16px; line-height: 1.6;">
+              Someone is trying to log in to your account. Use the verification code below to complete your login:
+            </p>
+            
+            <div style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; padding: 20px; border-radius: 10px; text-align: center; margin: 25px 0;">
+              <p style="margin: 0; font-size: 14px; opacity: 0.9;">Your Verification Code</p>
+              <h1 style="margin: 10px 0 0 0; font-size: 36px; letter-spacing: 8px; font-weight: bold;">${otp}</h1>
+            </div>
+            
+            <div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0; color: #92400e; font-size: 14px;">
+                ⚠️ <strong>Important:</strong> This code expires in 5 minutes. Never share this code with anyone.
+              </p>
+            </div>
+            
+            <div style="background: #dbeafe; border: 1px solid #3b82f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0; color: #1e40af; font-size: 14px;">
+                🛡️ <strong>Security Notice:</strong> This extra verification step helps protect your account from unauthorized access.
+              </p>
+            </div>
+            
+            <p style="color: #6b7280; font-size: 14px; margin-top: 25px;">
+              If you didn't attempt to log in, please ignore this email and consider changing your password.
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin-top: 30px; color: #9ca3af; font-size: 12px;">
+            <p>© 2024 Skill Assessment Portal. All rights reserved.</p>
+            <p>This is an automated message, please do not reply to this email.</p>
+          </div>
+        </div>
+      `,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('✅ Login OTP email sent successfully:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('❌ Login OTP email sending failed:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+};
+
 export const sendOTPEmail = async (email: string, otp: string) => {
   try {
     const transporter = createTransporter();
@@ -62,7 +122,7 @@ export const sendOTPEmail = async (email: string, otp: string) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Email sent successfully:', info.messageId);
+    console.log('✅ Password reset email sent successfully:', info.messageId);
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error('❌ Email sending failed:', error);

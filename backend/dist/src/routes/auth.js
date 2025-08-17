@@ -4,17 +4,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const dotenv_1 = __importDefault(require("dotenv"));
-const database_1 = require("../config/database");
+const models_1 = require("../models");
 const validation_1 = require("../middleware/validation");
 const auth_1 = require("../middleware/auth");
-const emailService_1 = require("../utils/emailService");
-// Ensure environment variables are loaded
 dotenv_1.default.config();
 const router = express_1.default.Router();
-// Debug logging
 console.log("Auth routes module loaded");
 /**
  * @swagger
@@ -22,59 +18,16 @@ console.log("Auth routes module loaded");
  *   name: Auth
  *   description: Authentication and user account endpoints
  */
-/**
- * @swagger
- * /api/auth/test:
- *   get:
- *     summary: Test auth route
- *     tags: [Auth]
- *     responses:
- *       200:
- *         description: Auth routes are working
- */
-// Simple test route to verify routing works
 router.get("/test", (req, res) => {
     res.json({ message: "Auth routes are working!" });
 });
 // Register user
-/**
- * @swagger
- * /api/auth/register:
- *   post:
- *     summary: Register a new user
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *               firstName:
- *                 type: string
- *               lastName:
- *                 type: string
- *               role:
- *                 type: string
- *               adminPasscode:
- *                 type: string
- *     responses:
- *       201:
- *         description: User registered
- *       400:
- *         description: User already exists or validation error
- */
-// Enhanced Register user (supports admin registration with passcode)
 router.post("/register", async (req, res) => {
     try {
         const { email, password, firstName, lastName, role, adminPasscode } = req.body;
         // Check if user already exists
-        const [existingUsers] = await database_1.pool.execute("SELECT id FROM users WHERE email = ?", [email]);
-        if (existingUsers.length > 0) {
+        const existingUser = await models_1.User.findOne({ email });
+        if (existingUser) {
             return res.status(400).json({
                 success: false,
                 message: "User already exists with this email",
@@ -91,28 +44,31 @@ router.post("/register", async (req, res) => {
             }
             userRole = "admin";
         }
-        // Hash password
-        const saltRounds = 12;
-        const hashedPassword = await bcryptjs_1.default.hash(password, saltRounds);
-        // Create user
-        const [result] = await database_1.pool.execute("INSERT INTO users (email, password, first_name, last_name, role) VALUES (?, ?, ?, ?, ?)", [email, hashedPassword, firstName, lastName, userRole]);
-        const userId = result.lastInsertRowid;
+        // Create user (password will be hashed by pre-save middleware)
+        const user = new models_1.User({
+            email,
+            password,
+            firstName,
+            lastName,
+            role: userRole,
+        });
+        await user.save();
         // Generate JWT token
         const jwtSecret = process.env.JWT_SECRET;
         if (!jwtSecret) {
             throw new Error("JWT_SECRET is not defined");
         }
-        const token = jsonwebtoken_1.default.sign({ userId, email, role: userRole }, jwtSecret, { expiresIn: process.env.JWT_EXPIRE || "7d" });
+        const token = jsonwebtoken_1.default.sign({ userId: user._id, email: user.email, role: user.role }, jwtSecret, { expiresIn: process.env.JWT_EXPIRE || "7d" });
         res.status(201).json({
             success: true,
             message: "User registered successfully",
             data: {
                 user: {
-                    id: userId,
-                    email,
-                    firstName,
-                    lastName,
-                    role: userRole,
+                    id: user._id,
+                    email: user.email,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    role: user.role,
                 },
                 token,
             },
@@ -126,81 +82,52 @@ router.post("/register", async (req, res) => {
         });
     }
 });
-/**
- * @swagger
- * /api/auth/login:
- *   post:
- *     summary: Login user
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *     responses:
- *       200:
- *         description: Login successful
- *       401:
- *         description: Invalid credentials
- */
 // Login user
 router.post("/login", (0, validation_1.validate)(validation_1.authSchemas.login), async (req, res) => {
     try {
         const { email, password } = req.body;
-        // Find user
         console.log("🔍 Login attempt for:", email);
-        const [rows] = await database_1.pool.execute("SELECT id, email, password, first_name, last_name, role, is_active FROM users WHERE email = ?", [email]);
-        const users = rows;
-        console.log("📊 Users found in database:", users.length);
-        if (users.length === 0) {
+        // Find user
+        const user = await models_1.User.findOne({ email });
+        if (!user) {
             console.log("❌ No user found with email:", email);
             return res.status(401).json({
                 success: false,
                 message: `No account found with email: ${email}`,
-                debug: process.env.NODE_ENV === 'development' ? 'User not found in database' : undefined
             });
         }
-        const user = users[0];
         // Check if user is active
-        if (!user.is_active) {
+        if (!user.isActive) {
             return res.status(401).json({
                 success: false,
                 message: "Account has been deactivated",
             });
         }
         // Check password
-        console.log("🔑 Validating password for user:", user.id);
-        const isPasswordValid = await bcryptjs_1.default.compare(password, user.password);
+        console.log("🔑 Validating password for user:", user._id);
+        const isPasswordValid = await user.comparePassword(password);
         if (!isPasswordValid) {
             console.log("❌ Invalid password for user:", email);
             return res.status(401).json({
                 success: false,
                 message: "Invalid password provided",
-                debug: process.env.NODE_ENV === 'development' ? 'Password does not match' : undefined
             });
         }
         // Generate JWT token
         const jwtSecret = process.env.JWT_SECRET;
-        console.log("JWT_SECRET loaded:", jwtSecret ? "✅ Yes" : "❌ No");
         if (!jwtSecret) {
             throw new Error("JWT_SECRET is not defined");
         }
-        const token = jsonwebtoken_1.default.sign({ userId: user.id, email: user.email, role: user.role }, jwtSecret, { expiresIn: process.env.JWT_EXPIRE || "7d" });
+        const token = jsonwebtoken_1.default.sign({ userId: user._id, email: user.email, role: user.role }, jwtSecret, { expiresIn: process.env.JWT_EXPIRE || "7d" });
         res.json({
             success: true,
             message: "Login successful",
             data: {
                 user: {
-                    id: user.id,
+                    id: user._id,
                     email: user.email,
-                    firstName: user.first_name,
-                    lastName: user.last_name,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
                     role: user.role,
                 },
                 token,
@@ -215,42 +142,26 @@ router.post("/login", (0, validation_1.validate)(validation_1.authSchemas.login)
         });
     }
 });
-/**
- * @swagger
- * /api/auth/me:
- *   get:
- *     summary: Get current user profile
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: User profile
- *       401:
- *         description: Unauthorized
- */
 // Get current user
 router.get("/me", auth_1.authenticate, async (req, res) => {
     try {
-        const [rows] = await database_1.pool.execute("SELECT id, email, first_name, last_name, role, created_at FROM users WHERE id = ?", [req.user.userId]);
-        const users = rows;
-        if (users.length === 0) {
+        const user = await models_1.User.findById(req.user.userId).select('-password');
+        if (!user) {
             return res.status(404).json({
                 success: false,
                 message: "User not found",
             });
         }
-        const user = users[0];
         res.json({
             success: true,
             data: {
                 user: {
-                    id: user.id,
+                    id: user._id,
                     email: user.email,
-                    firstName: user.first_name,
-                    lastName: user.last_name,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
                     role: user.role,
-                    createdAt: user.created_at,
+                    createdAt: user.createdAt,
                 },
             },
         });
@@ -263,41 +174,10 @@ router.get("/me", auth_1.authenticate, async (req, res) => {
         });
     }
 });
-/**
- * @swagger
- * /api/auth/change-password:
- *   put:
- *     summary: Change user password
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               currentPassword:
- *                 type: string
- *               newPassword:
- *                 type: string
- *     responses:
- *       200:
- *         description: Password changed
- *       400:
- *         description: Validation error
- *       401:
- *         description: Unauthorized
- */
 // Change password
 router.put("/change-password", auth_1.authenticate, async (req, res) => {
     try {
         const { currentPassword, newPassword } = req.body;
-        console.log("🔐 Password change request:", {
-            userId: req.user.userId,
-            timestamp: new Date().toISOString(),
-        });
         if (!currentPassword || !newPassword) {
             return res.status(400).json({
                 success: false,
@@ -311,38 +191,24 @@ router.put("/change-password", auth_1.authenticate, async (req, res) => {
             });
         }
         // Get current user
-        const [rows] = await database_1.pool.execute("SELECT password FROM users WHERE id = ?", [req.user.userId]);
-        const users = rows;
-        if (users.length === 0) {
+        const user = await models_1.User.findById(req.user.userId);
+        if (!user) {
             return res.status(404).json({
                 success: false,
                 message: "User not found",
             });
         }
-        console.log("🔍 Password verification:", {
-            userId: req.user.userId,
-            hasStoredPassword: !!users[0].password,
-        });
         // Verify current password
-        const isCurrentPasswordValid = await bcryptjs_1.default.compare(currentPassword, users[0].password);
-        console.log("✅ Password comparison result:", {
-            isCurrent: isCurrentPasswordValid,
-            userId: req.user.userId,
-        });
+        const isCurrentPasswordValid = await user.comparePassword(currentPassword);
         if (!isCurrentPasswordValid) {
             return res.status(400).json({
                 success: false,
                 message: "Current password is incorrect",
             });
         }
-        // Hash new password
-        const saltRounds = 12;
-        const hashedNewPassword = await bcryptjs_1.default.hash(newPassword, saltRounds);
-        // Update password
-        await database_1.pool.execute("UPDATE users SET password = ? WHERE id = ?", [
-            hashedNewPassword,
-            req.user.userId,
-        ]);
+        // Update password (will be hashed by pre-save middleware)
+        user.password = newPassword;
+        await user.save();
         res.json({
             success: true,
             message: "Password changed successfully",
@@ -353,252 +219,6 @@ router.put("/change-password", auth_1.authenticate, async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to change password",
-        });
-    }
-});
-/**
- * @swagger
- * /api/auth/debug-user:
- *   get:
- *     summary: Debug - get user info (dev only)
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: User info
- *       401:
- *         description: Unauthorized
- */
-// Debug endpoint to check user information (temporary)
-router.get("/debug-user", auth_1.authenticate, async (req, res) => {
-    try {
-        const [rows] = await database_1.pool.execute("SELECT id, email, first_name, last_name, role, is_active, created_at FROM users WHERE id = ?", [req.user.userId]);
-        const users = rows;
-        if (users.length === 0) {
-            return res.json({
-                success: false,
-                message: "User not found",
-                jwtUser: req.user,
-            });
-        }
-        res.json({
-            success: true,
-            data: {
-                jwtUser: req.user,
-                dbUser: users[0],
-                match: users[0].id === req.user.userId,
-            },
-        });
-    }
-    catch (error) {
-        console.error("Debug user error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Debug query failed",
-            error: error instanceof Error ? error.message : String(error),
-        });
-    }
-});
-/**
- * @swagger
- * /api/auth/debug-reset-password:
- *   post:
- *     summary: Debug - reset password (dev only)
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               newPassword:
- *                 type: string
- *     responses:
- *       200:
- *         description: Password reset
- *       400:
- *         description: Validation error
- *       401:
- *         description: Unauthorized
- */
-// Forgot Password - Send OTP
-router.post("/forgot-password", async (req, res) => {
-    try {
-        const { email } = req.body;
-        if (!email) {
-            return res.status(400).json({
-                success: false,
-                message: "Email is required",
-            });
-        }
-        // Check if user exists
-        const [users] = await database_1.pool.execute("SELECT id, email FROM users WHERE email = ?", [email]);
-        if (users.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: "No account found with this email address",
-            });
-        }
-        // Generate 6-digit OTP
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-        // Store OTP in database
-        await database_1.pool.execute("INSERT INTO password_reset_otps (email, otp, expires_at) VALUES (?, ?, ?)", [email, otp, expiresAt.toISOString()]);
-        // Send OTP via email
-        console.log(`🔐 Password reset OTP sent to: ${email}`);
-        const emailResult = await (0, emailService_1.sendOTPEmail)(email, otp);
-        if (!emailResult.success) {
-            console.error("Failed to send email:", emailResult.error);
-            // Still return success but log the error
-        }
-        res.json({
-            success: true,
-            message: "OTP sent to your email address",
-            // OTP removed for security
-        });
-    }
-    catch (error) {
-        console.error("Forgot password error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Failed to process forgot password request",
-        });
-    }
-});
-// Verify OTP
-router.post("/verify-otp", async (req, res) => {
-    try {
-        const { email, otp } = req.body;
-        // console.log('🔍 OTP Verification Request:', { email, otp });
-        if (!email || !otp) {
-            return res.status(400).json({
-                success: false,
-                message: "Email and OTP are required",
-            });
-        }
-        // Find valid OTP
-        const [otpRecords] = await database_1.pool.execute("SELECT id, expires_at FROM password_reset_otps WHERE email = ? AND otp = ? AND is_used = FALSE ORDER BY created_at DESC LIMIT 1", [email, otp]);
-        // console.log('🔍 OTP Records Found:', otpRecords);
-        if (otpRecords.length === 0) {
-            console.log("❌ No OTP records found");
-            return res.status(400).json({
-                success: false,
-                message: "Invalid or expired OTP",
-            });
-        }
-        const otpRecord = otpRecords[0];
-        const expiresAt = new Date(otpRecord.expires_at);
-        const now = new Date();
-        // console.log('🕐 Time check:', {
-        //   expiresAt: expiresAt.toISOString(),
-        //   now: now.toISOString(),
-        //   isExpired: expiresAt < now
-        // });
-        if (expiresAt < now) {
-            console.log("❌ OTP has expired");
-            return res.status(400).json({
-                success: false,
-                message: "OTP has expired",
-            });
-        }
-        // console.log('✅ OTP is valid, proceeding...');
-        // Mark OTP as used
-        // console.log('🔄 Marking OTP as used...');
-        await database_1.pool.execute("UPDATE password_reset_otps SET is_used = TRUE WHERE id = ?", [otpRecord.id]);
-        // Generate temporary token for password reset
-        const jwtSecret = process.env.JWT_SECRET;
-        if (!jwtSecret) {
-            console.log("❌ JWT_SECRET not found");
-            throw new Error("JWT_SECRET is not defined");
-        }
-        // console.log('🔑 Generating reset token...');
-        const resetToken = jsonwebtoken_1.default.sign({ email, purpose: "password_reset" }, jwtSecret, { expiresIn: "15m" });
-        console.log("✅ OTP verification successful, sending response");
-        res.json({
-            success: true,
-            message: "OTP verified successfully",
-            data: {
-                resetToken,
-            },
-        });
-    }
-    catch (error) {
-        console.error("❌ Verify OTP error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Failed to verify OTP",
-        });
-    }
-});
-// Reset Password
-router.post("/reset-password", async (req, res) => {
-    try {
-        const { resetToken, newPassword, confirmPassword } = req.body;
-        if (!resetToken || !newPassword || !confirmPassword) {
-            return res.status(400).json({
-                success: false,
-                message: "Reset token, new password, and confirm password are required",
-            });
-        }
-        if (newPassword !== confirmPassword) {
-            return res.status(400).json({
-                success: false,
-                message: "Passwords do not match",
-            });
-        }
-        if (newPassword.length < 6) {
-            return res.status(400).json({
-                success: false,
-                message: "Password must be at least 6 characters long",
-            });
-        }
-        // Verify reset token
-        const jwtSecret = process.env.JWT_SECRET;
-        if (!jwtSecret) {
-            throw new Error("JWT_SECRET is not defined");
-        }
-        let decoded;
-        try {
-            decoded = jsonwebtoken_1.default.verify(resetToken, jwtSecret);
-        }
-        catch (error) {
-            return res.status(400).json({
-                success: false,
-                message: "Invalid or expired reset token",
-            });
-        }
-        if (decoded.purpose !== "password_reset") {
-            return res.status(400).json({
-                success: false,
-                message: "Invalid reset token",
-            });
-        }
-        // Hash new password
-        const saltRounds = 12;
-        const hashedPassword = await bcryptjs_1.default.hash(newPassword, saltRounds);
-        // Update password
-        await database_1.pool.execute("UPDATE users SET password = ? WHERE email = ?", [
-            hashedPassword,
-            decoded.email,
-        ]);
-        // Clean up used OTPs for this email
-        await database_1.pool.execute("DELETE FROM password_reset_otps WHERE email = ?", [
-            decoded.email,
-        ]);
-        res.json({
-            success: true,
-            message: "Password reset successfully",
-        });
-    }
-    catch (error) {
-        console.error("Reset password error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Failed to reset password",
         });
     }
 });
@@ -629,14 +249,11 @@ router.post("/google", async (req, res) => {
         const { email, given_name, family_name, picture, sub } = payload;
         // Check if user exists
         console.log("🔍 Checking if user exists:", email);
-        const [existingUsers] = await database_1.pool.execute("SELECT id, email, first_name, last_name, role FROM users WHERE email = ?", [email]);
-        let user;
+        let user = await models_1.User.findOne({ email });
         let userRole = "user";
-        console.log("📊 Existing users found:", existingUsers.length);
-        if (existingUsers.length > 0) {
+        if (user) {
             // User exists, log them in
-            user = existingUsers[0];
-            console.log("✅ Existing user login:", { id: user.id, email: user.email, role: user.role });
+            console.log("✅ Existing user login:", { id: user._id, email: user.email, role: user.role });
         }
         else {
             // New user, check if they want admin role
@@ -652,31 +269,31 @@ router.post("/google", async (req, res) => {
                 userRole = "admin";
             }
             // Create new user
-            const [result] = await database_1.pool.execute("INSERT INTO users (email, password, first_name, last_name, role) VALUES (?, ?, ?, ?, ?)", [email, 'google_oauth', given_name, family_name, userRole]);
-            user = {
-                id: result.lastInsertRowid,
+            user = new models_1.User({
                 email,
-                first_name: given_name,
-                last_name: family_name,
+                password: 'google_oauth',
+                firstName: given_name,
+                lastName: family_name,
                 role: userRole
-            };
+            });
+            await user.save();
         }
         // Generate JWT token
         const jwtSecret = process.env.JWT_SECRET;
         if (!jwtSecret) {
             throw new Error("JWT_SECRET is not defined");
         }
-        const token = jsonwebtoken_1.default.sign({ userId: user.id, email: user.email, role: user.role }, jwtSecret, { expiresIn: process.env.JWT_EXPIRE || "7d" });
+        const token = jsonwebtoken_1.default.sign({ userId: user._id, email: user.email, role: user.role }, jwtSecret, { expiresIn: process.env.JWT_EXPIRE || "7d" });
         console.log("✅ Google OAuth successful, sending response");
         res.json({
             success: true,
             message: "Google login successful",
             data: {
                 user: {
-                    id: user.id,
+                    id: user._id,
                     email: user.email,
-                    firstName: user.first_name,
-                    lastName: user.last_name,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
                     role: user.role,
                     picture
                 },
@@ -694,50 +311,25 @@ router.post("/google", async (req, res) => {
         });
     }
 });
-/**
- * @swagger
- * /api/auth/deactivate:
- *   post:
- *     summary: Deactivate user account
- *     description: Deactivates the current user's account. Account will be deleted after 30 days unless reactivated.
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Account deactivated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
- *                 data:
- *                   type: object
- *                   properties:
- *                     deleteAt:
- *                       type: string
- *                       format: date-time
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
 // Deactivate Account
 router.post("/deactivate", auth_1.authenticate, async (req, res) => {
     try {
-        const userId = req.user.userId;
+        const user = await models_1.User.findById(req.user.userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found",
+            });
+        }
         // Set deactivation date (30 days from now for deletion)
         const deactivatedAt = new Date();
-        const deleteAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-        await database_1.pool.execute("UPDATE users SET is_active = FALSE, deactivated_at = ?, delete_at = ? WHERE id = ?", [deactivatedAt.toISOString(), deleteAt.toISOString(), userId]);
+        user.isActive = false;
+        user.deactivatedAt = deactivatedAt;
+        await user.save();
         res.json({
             success: true,
             message: "Account deactivated. You have 30 days to reactivate before deletion.",
-            data: { deleteAt }
+            data: { deactivatedAt }
         });
     }
     catch (error) {
@@ -748,63 +340,20 @@ router.post("/deactivate", auth_1.authenticate, async (req, res) => {
         });
     }
 });
-/**
- * @swagger
- * /api/auth/reactivate:
- *   post:
- *     summary: Reactivate deactivated account
- *     description: Reactivates a deactivated account using email and password verification
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *                 example: user@example.com
- *               password:
- *                 type: string
- *                 example: password123
- *     responses:
- *       200:
- *         description: Account reactivated successfully
- *       401:
- *         description: Invalid password
- *       404:
- *         description: No deactivated account found
- *       410:
- *         description: Account permanently deleted
- */
 // Reactivate Account
 router.post("/reactivate", async (req, res) => {
     try {
         const { email, password } = req.body;
         // Find deactivated user
-        const [rows] = await database_1.pool.execute("SELECT id, password, delete_at FROM users WHERE email = ? AND is_active = FALSE", [email]);
-        const users = rows;
-        if (users.length === 0) {
+        const user = await models_1.User.findOne({ email, isActive: false });
+        if (!user) {
             return res.status(404).json({
                 success: false,
                 message: "No deactivated account found with this email"
             });
         }
-        const user = users[0];
-        // Check if account is past deletion date
-        if (user.delete_at && new Date() > new Date(user.delete_at)) {
-            return res.status(410).json({
-                success: false,
-                message: "Account has been permanently deleted"
-            });
-        }
         // Verify password
-        const isPasswordValid = await bcryptjs_1.default.compare(password, user.password);
+        const isPasswordValid = await user.comparePassword(password);
         if (!isPasswordValid) {
             return res.status(401).json({
                 success: false,
@@ -812,7 +361,9 @@ router.post("/reactivate", async (req, res) => {
             });
         }
         // Reactivate account
-        await database_1.pool.execute("UPDATE users SET is_active = TRUE, deactivated_at = NULL, delete_at = NULL WHERE id = ?", [user.id]);
+        user.isActive = true;
+        user.deactivatedAt = undefined;
+        await user.save();
         res.json({
             success: true,
             message: "Account reactivated successfully"
@@ -826,50 +377,6 @@ router.post("/reactivate", async (req, res) => {
         });
     }
 });
-/**
- * @swagger
- * /api/auth/admin/deactivated-users:
- *   get:
- *     summary: Get all deactivated users (Admin only)
- *     description: Retrieves a list of all deactivated user accounts with deletion status
- *     tags: [Auth, Admin]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of deactivated users
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: object
- *                   properties:
- *                     users:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           id:
- *                             type: integer
- *                           email:
- *                             type: string
- *                           first_name:
- *                             type: string
- *                           last_name:
- *                             type: string
- *                           deactivated_at:
- *                             type: string
- *                             format: date-time
- *                           delete_at:
- *                             type: string
- *                             format: date-time
- *       403:
- *         description: Admin access required
- */
 // Admin: Get Deactivated Users
 router.get("/admin/deactivated-users", auth_1.authenticate, async (req, res) => {
     try {
@@ -880,10 +387,12 @@ router.get("/admin/deactivated-users", auth_1.authenticate, async (req, res) => 
                 message: "Admin access required"
             });
         }
-        const [rows] = await database_1.pool.execute("SELECT id, email, first_name, last_name, deactivated_at, delete_at FROM users WHERE is_active = FALSE ORDER BY deactivated_at DESC");
+        const users = await models_1.User.find({ isActive: false })
+            .select('email firstName lastName deactivatedAt')
+            .sort({ deactivatedAt: -1 });
         res.json({
             success: true,
-            data: { users: rows }
+            data: { users }
         });
     }
     catch (error) {
@@ -894,33 +403,6 @@ router.get("/admin/deactivated-users", auth_1.authenticate, async (req, res) => 
         });
     }
 });
-/**
- * @swagger
- * /api/auth/admin/reactivate-user:
- *   post:
- *     summary: Force reactivate user account (Admin only)
- *     description: Allows admin to reactivate any deactivated user account without password verification
- *     tags: [Auth, Admin]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - userId
- *             properties:
- *               userId:
- *                 type: integer
- *                 example: 123
- *     responses:
- *       200:
- *         description: User reactivated successfully
- *       403:
- *         description: Admin access required
- */
 // Admin: Force Reactivate User
 router.post("/admin/reactivate-user", auth_1.authenticate, async (req, res) => {
     try {
@@ -932,7 +414,16 @@ router.post("/admin/reactivate-user", auth_1.authenticate, async (req, res) => {
             });
         }
         const { userId } = req.body;
-        await database_1.pool.execute("UPDATE users SET is_active = TRUE, deactivated_at = NULL, delete_at = NULL WHERE id = ?", [userId]);
+        const user = await models_1.User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+        user.isActive = true;
+        user.deactivatedAt = undefined;
+        await user.save();
         res.json({
             success: true,
             message: "User account reactivated successfully"
@@ -943,38 +434,6 @@ router.post("/admin/reactivate-user", auth_1.authenticate, async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to reactivate user"
-        });
-    }
-});
-// Temporary password reset endpoint for debugging (REMOVE IN PRODUCTION)
-router.post("/debug-reset-password", auth_1.authenticate, async (req, res) => {
-    try {
-        const { newPassword } = req.body;
-        if (!newPassword || newPassword.length < 6) {
-            return res.status(400).json({
-                success: false,
-                message: "New password must be at least 6 characters long",
-            });
-        }
-        console.log("🔧 DEBUG: Resetting password for user:", req.user.userId);
-        // Hash new password
-        const saltRounds = 12;
-        const hashedNewPassword = await bcryptjs_1.default.hash(newPassword, saltRounds);
-        // Update password without checking current password
-        await database_1.pool.execute("UPDATE users SET password = ? WHERE id = ?", [
-            hashedNewPassword,
-            req.user.userId,
-        ]);
-        res.json({
-            success: true,
-            message: "Password reset successfully (DEBUG MODE)",
-        });
-    }
-    catch (error) {
-        console.error("Debug password reset error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Failed to reset password",
         });
     }
 });

@@ -2,18 +2,17 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt, { SignOptions } from "jsonwebtoken";
 import dotenv from "dotenv";
-import { pool } from "../config/database";
+import { User, LoginOtp } from "../models";
 import { validate, authSchemas } from "../middleware/validation";
 import { authenticate, CustomRequest } from "../middleware/auth";
-import { sendOTPEmail } from "../utils/emailService";
+import { sendLoginOTP } from "../utils/emailService";
 
-// Ensure environment variables are loaded
 dotenv.config();
 
 const router = express.Router();
 
-// Debug logging
 console.log("Auth routes module loaded");
+
 /**
  * @swagger
  * tags:
@@ -21,68 +20,18 @@ console.log("Auth routes module loaded");
  *   description: Authentication and user account endpoints
  */
 
-/**
- * @swagger
- * /api/auth/test:
- *   get:
- *     summary: Test auth route
- *     tags: [Auth]
- *     responses:
- *       200:
- *         description: Auth routes are working
- */
-
-// Simple test route to verify routing works
 router.get("/test", (req, res) => {
   res.json({ message: "Auth routes are working!" });
 });
 
 // Register user
-/**
- * @swagger
- * /api/auth/register:
- *   post:
- *     summary: Register a new user
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *               firstName:
- *                 type: string
- *               lastName:
- *                 type: string
- *               role:
- *                 type: string
- *               adminPasscode:
- *                 type: string
- *     responses:
- *       201:
- *         description: User registered
- *       400:
- *         description: User already exists or validation error
- */
-
-// Enhanced Register user (supports admin registration with passcode)
 router.post("/register", async (req, res) => {
   try {
-    const { email, password, firstName, lastName, role, adminPasscode } =
-      req.body;
+    const { email, password, firstName, lastName, role, adminPasscode } = req.body;
 
     // Check if user already exists
-    const [existingUsers] = await pool.execute(
-      "SELECT id FROM users WHERE email = ?",
-      [email]
-    );
-
-    if ((existingUsers as any[]).length > 0) {
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
       return res.status(400).json({
         success: false,
         message: "User already exists with this email",
@@ -101,17 +50,16 @@ router.post("/register", async (req, res) => {
       userRole = "admin";
     }
 
-    // Hash password
-    const saltRounds = 12;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    // Create user (password will be hashed by pre-save middleware)
+    const user = new User({
+      email,
+      password,
+      firstName,
+      lastName,
+      role: userRole,
+    });
 
-    // Create user
-    const [result] = await pool.execute(
-      "INSERT INTO users (email, password, first_name, last_name, role) VALUES (?, ?, ?, ?, ?)",
-      [email, hashedPassword, firstName, lastName, userRole]
-    );
-
-    const userId = (result as any).lastInsertRowid;
+    await user.save();
 
     // Generate JWT token
     const jwtSecret = process.env.JWT_SECRET;
@@ -120,7 +68,7 @@ router.post("/register", async (req, res) => {
     }
 
     const token = jwt.sign(
-      { userId, email, role: userRole },
+      { userId: user._id, email: user.email, role: user.role },
       jwtSecret,
       { expiresIn: process.env.JWT_EXPIRE || "7d" } as SignOptions
     );
@@ -130,11 +78,11 @@ router.post("/register", async (req, res) => {
       message: "User registered successfully",
       data: {
         user: {
-          id: userId,
-          email,
-          firstName,
-          lastName,
-          role: userRole,
+          id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
         },
         token,
       },
@@ -147,362 +95,191 @@ router.post("/register", async (req, res) => {
     });
   }
 });
-/**
- * @swagger
- * /api/auth/login:
- *   post:
- *     summary: Login user
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *     responses:
- *       200:
- *         description: Login successful
- *       401:
- *         description: Invalid credentials
- */
 
-// Login user
-router.post(
-  "/login",
-  validate(authSchemas.login),
-  async (req: CustomRequest, res) => {
-    try {
-      const { email, password } = req.body;
+// Step 1: Request OTP for login
+router.post("/login", validate(authSchemas.login), async (req: CustomRequest, res) => {
+  try {
+    const { email, password } = req.body;
 
-      // Find user
-      console.log("🔍 Login attempt for:", email);
-      const [rows] = await pool.execute(
-        "SELECT id, email, password, first_name, last_name, role, is_active FROM users WHERE email = ?",
-        [email]
-      );
-
-      const users = rows as any[];
-      console.log("📊 Users found in database:", users.length);
-      
-      if (users.length === 0) {
-        console.log("❌ No user found with email:", email);
-        return res.status(401).json({
-          success: false,
-          message: `No account found with email: ${email}`,
-          debug: process.env.NODE_ENV === 'development' ? 'User not found in database' : undefined
-        });
-      }
-
-      const user = users[0];
-
-      // Check if user is active
-      if (!user.is_active) {
-        return res.status(401).json({
-          success: false,
-          message: "Account has been deactivated",
-        });
-      }
-
-      // Check password
-      console.log("🔑 Validating password for user:", user.id);
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      
-      if (!isPasswordValid) {
-        console.log("❌ Invalid password for user:", email);
-        return res.status(401).json({
-          success: false,
-          message: "Invalid password provided",
-          debug: process.env.NODE_ENV === 'development' ? 'Password does not match' : undefined
-        });
-      }
-
-      // Generate JWT token
-      const jwtSecret = process.env.JWT_SECRET;
-      console.log("JWT_SECRET loaded:", jwtSecret ? "✅ Yes" : "❌ No");
-      if (!jwtSecret) {
-        throw new Error("JWT_SECRET is not defined");
-      }
-
-      const token = jwt.sign(
-        { userId: user.id, email: user.email, role: user.role },
-        jwtSecret,
-        { expiresIn: process.env.JWT_EXPIRE || "7d" } as SignOptions
-      );
-
-      res.json({
-        success: true,
-        message: "Login successful",
-        data: {
-          user: {
-            id: user.id,
-            email: user.email,
-            firstName: user.first_name,
-            lastName: user.last_name,
-            role: user.role,
-          },
-          token,
-        },
-      });
-    } catch (error) {
-      console.error("Login error:", error);
-      res.status(500).json({
+    console.log("🔍 Login attempt for:", email);
+    
+    // Find user
+    const user = await User.findOne({ email });
+    if (!user) {
+      console.log("❌ No user found with email:", email);
+      return res.status(401).json({
         success: false,
-        message: "Login failed",
+        message: `No account found with email: ${email}`,
       });
     }
+
+    // Check if user is active
+    if (!user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: "Account has been deactivated",
+      });
+    }
+
+    // Check password
+    const isPasswordValid = await user.comparePassword(password);
+    
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid password provided",
+      });
+    }
+
+    // Generate 4-digit OTP
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    
+    // Delete any existing OTPs for this email
+    await LoginOtp.deleteMany({ email });
+    
+    // Create new OTP record
+    const loginOtp = new LoginOtp({
+      email,
+      otp,
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
+    });
+    
+    await loginOtp.save();
+    
+    // Send OTP via email
+    try {
+      await sendLoginOTP(email, otp);
+      console.log("✅ OTP sent to:", email);
+    } catch (emailError) {
+      console.error("❌ Failed to send OTP:", emailError);
+      // In development, still allow login but log the OTP
+      if (process.env.NODE_ENV === 'development') {
+        console.log("🔧 DEV MODE - OTP:", otp);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: "OTP sent to your email. Please verify to complete login.",
+      data: {
+        requiresOTP: true,
+        email,
+        expiresIn: 300, // 5 minutes in seconds
+        ...(process.env.NODE_ENV === 'development' && { devOTP: otp })
+      },
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Login failed",
+    });
   }
-);
-/**
- * @swagger
- * /api/auth/me:
- *   get:
- *     summary: Get current user profile
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: User profile
- *       401:
- *         description: Unauthorized
- */
+});
 
-// Get current user
-router.get("/me", authenticate, async (req: CustomRequest, res) => {
+// Step 2: Verify OTP and complete login
+router.post("/verify-otp", async (req, res) => {
   try {
-    const [rows] = await pool.execute(
-      "SELECT id, email, first_name, last_name, role, created_at FROM users WHERE id = ?",
-      [req.user!.userId]
-    );
+    const { email, otp } = req.body;
 
-    const users = rows as any[];
-    if (users.length === 0) {
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and OTP are required",
+      });
+    }
+
+    // Find valid OTP
+    const loginOtp = await LoginOtp.findOne({
+      email,
+      otp,
+      isUsed: false,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (!loginOtp) {
+      // Check if OTP exists but is expired or used
+      const expiredOtp = await LoginOtp.findOne({ email, otp });
+      if (expiredOtp) {
+        return res.status(400).json({
+          success: false,
+          message: "OTP has expired or already been used. Please request a new one.",
+        });
+      }
+      
+      // Increment attempts
+      await LoginOtp.updateOne(
+        { email, expiresAt: { $gt: new Date() } },
+        { $inc: { attempts: 1 } }
+      );
+      
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP. Please check and try again.",
+      });
+    }
+
+    // Check attempts limit
+    if (loginOtp.attempts >= 3) {
+      await LoginOtp.deleteMany({ email });
+      return res.status(429).json({
+        success: false,
+        message: "Too many failed attempts. Please request a new OTP.",
+      });
+    }
+
+    // Mark OTP as used
+    loginOtp.isUsed = true;
+    await loginOtp.save();
+
+    // Get user and generate JWT
+    const user = await User.findOne({ email });
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: "User not found",
       });
     }
 
-    const user = users[0];
-
-    res.json({
-      success: true,
-      data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          role: user.role,
-          createdAt: user.created_at,
-        },
-      },
-    });
-  } catch (error) {
-    console.error("Get user error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to get user information",
-    });
-  }
-});
-/**
- * @swagger
- * /api/auth/change-password:
- *   put:
- *     summary: Change user password
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               currentPassword:
- *                 type: string
- *               newPassword:
- *                 type: string
- *     responses:
- *       200:
- *         description: Password changed
- *       400:
- *         description: Validation error
- *       401:
- *         description: Unauthorized
- */
-
-// Change password
-router.put(
-  "/change-password",
-  authenticate,
-  async (req: CustomRequest, res) => {
-    try {
-      const { currentPassword, newPassword } = req.body;
-
-      console.log("🔐 Password change request:", {
-        userId: req.user!.userId,
-        timestamp: new Date().toISOString(),
-      });
-
-      if (!currentPassword || !newPassword) {
-        return res.status(400).json({
-          success: false,
-          message: "Current password and new password are required",
-        });
-      }
-
-      if (newPassword.length < 6) {
-        return res.status(400).json({
-          success: false,
-          message: "New password must be at least 6 characters long",
-        });
-      }
-
-      // Get current user
-      const [rows] = await pool.execute(
-        "SELECT password FROM users WHERE id = ?",
-        [req.user!.userId]
-      );
-
-      const users = rows as any[];
-      if (users.length === 0) {
-        return res.status(404).json({
-          success: false,
-          message: "User not found",
-        });
-      }
-
-      console.log("🔍 Password verification:", {
-        userId: req.user!.userId,
-        hasStoredPassword: !!users[0].password,
-      });
-
-      // Verify current password
-      const isCurrentPasswordValid = await bcrypt.compare(
-        currentPassword,
-        users[0].password
-      );
-
-      console.log("✅ Password comparison result:", {
-        isCurrent: isCurrentPasswordValid,
-        userId: req.user!.userId,
-      });
-
-      if (!isCurrentPasswordValid) {
-        return res.status(400).json({
-          success: false,
-          message: "Current password is incorrect",
-        });
-      }
-
-      // Hash new password
-      const saltRounds = 12;
-      const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-
-      // Update password
-      await pool.execute("UPDATE users SET password = ? WHERE id = ?", [
-        hashedNewPassword,
-        req.user!.userId,
-      ]);
-
-      res.json({
-        success: true,
-        message: "Password changed successfully",
-      });
-    } catch (error) {
-      console.error("Change password error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to change password",
-      });
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      throw new Error("JWT_SECRET is not defined");
     }
-  }
-);
-/**
- * @swagger
- * /api/auth/debug-user:
- *   get:
- *     summary: Debug - get user info (dev only)
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: User info
- *       401:
- *         description: Unauthorized
- */
 
-// Debug endpoint to check user information (temporary)
-router.get("/debug-user", authenticate, async (req: CustomRequest, res) => {
-  try {
-    const [rows] = await pool.execute(
-      "SELECT id, email, first_name, last_name, role, is_active, created_at FROM users WHERE id = ?",
-      [req.user!.userId]
+    const token = jwt.sign(
+      { userId: user._id, email: user.email, role: user.role },
+      jwtSecret,
+      { expiresIn: process.env.JWT_EXPIRE || "7d" } as SignOptions
     );
 
-    const users = rows as any[];
-    if (users.length === 0) {
-      return res.json({
-        success: false,
-        message: "User not found",
-        jwtUser: req.user,
-      });
-    }
+    // Clean up used OTP
+    await LoginOtp.deleteMany({ email });
 
     res.json({
       success: true,
+      message: "Login successful",
       data: {
-        jwtUser: req.user,
-        dbUser: users[0],
-        match: users[0].id === req.user!.userId,
+        user: {
+          id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+        },
+        token,
       },
     });
   } catch (error) {
-    console.error("Debug user error:", error);
+    console.error("OTP verification error:", error);
     res.status(500).json({
       success: false,
-      message: "Debug query failed",
-      error: error instanceof Error ? error.message : String(error),
+      message: "OTP verification failed",
     });
   }
 });
-/**
- * @swagger
- * /api/auth/debug-reset-password:
- *   post:
- *     summary: Debug - reset password (dev only)
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               newPassword:
- *                 type: string
- *     responses:
- *       200:
- *         description: Password reset
- *       400:
- *         description: Validation error
- *       401:
- *         description: Unauthorized
- */
 
-// Forgot Password - Send OTP
-router.post("/forgot-password", async (req, res) => {
+// Resend OTP
+router.post("/resend-otp", async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -514,212 +291,139 @@ router.post("/forgot-password", async (req, res) => {
     }
 
     // Check if user exists
-    const [users] = await pool.execute(
-      "SELECT id, email FROM users WHERE email = ?",
-      [email]
-    );
-
-    if ((users as any[]).length === 0) {
+    const user = await User.findOne({ email });
+    if (!user) {
       return res.status(404).json({
         success: false,
-        message: "No account found with this email address",
+        message: "User not found",
       });
     }
 
-    // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    // Store OTP in database
-    await pool.execute(
-      "INSERT INTO password_reset_otps (email, otp, expires_at) VALUES (?, ?, ?)",
-      [email, otp, expiresAt.toISOString()]
-    );
-
-    // Send OTP via email
-    console.log(`🔐 Password reset OTP sent to: ${email}`);
-    const emailResult = await sendOTPEmail(email, otp);
-
-    if (!emailResult.success) {
-      console.error("Failed to send email:", emailResult.error);
-      // Still return success but log the error
+    // Generate new OTP
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    
+    // Delete existing OTPs
+    await LoginOtp.deleteMany({ email });
+    
+    // Create new OTP
+    const loginOtp = new LoginOtp({
+      email,
+      otp,
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+    });
+    
+    await loginOtp.save();
+    
+    // Send OTP
+    try {
+      await sendLoginOTP(email, otp);
+    } catch (emailError) {
+      console.error("Failed to send OTP:", emailError);
+      if (process.env.NODE_ENV === 'development') {
+        console.log("🔧 DEV MODE - New OTP:", otp);
+      }
     }
 
     res.json({
       success: true,
-      message: "OTP sent to your email address",
-      // OTP removed for security
-    });
-  } catch (error) {
-    console.error("Forgot password error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to process forgot password request",
-    });
-  }
-});
-
-// Verify OTP
-router.post("/verify-otp", async (req, res) => {
-  try {
-    const { email, otp } = req.body;
-
-    // console.log('🔍 OTP Verification Request:', { email, otp });
-
-    if (!email || !otp) {
-      return res.status(400).json({
-        success: false,
-        message: "Email and OTP are required",
-      });
-    }
-
-    // Find valid OTP
-    const [otpRecords] = await pool.execute(
-      "SELECT id, expires_at FROM password_reset_otps WHERE email = ? AND otp = ? AND is_used = FALSE ORDER BY created_at DESC LIMIT 1",
-      [email, otp]
-    );
-
-    // console.log('🔍 OTP Records Found:', otpRecords);
-
-    if ((otpRecords as any[]).length === 0) {
-      console.log("❌ No OTP records found");
-      return res.status(400).json({
-        success: false,
-        message: "Invalid or expired OTP",
-      });
-    }
-
-    const otpRecord = (otpRecords as any[])[0];
-    const expiresAt = new Date(otpRecord.expires_at);
-    const now = new Date();
-
-    // console.log('🕐 Time check:', {
-    //   expiresAt: expiresAt.toISOString(),
-    //   now: now.toISOString(),
-    //   isExpired: expiresAt < now
-    // });
-
-    if (expiresAt < now) {
-      console.log("❌ OTP has expired");
-      return res.status(400).json({
-        success: false,
-        message: "OTP has expired",
-      });
-    }
-
-    // console.log('✅ OTP is valid, proceeding...');
-
-    // Mark OTP as used
-    // console.log('🔄 Marking OTP as used...');
-    await pool.execute(
-      "UPDATE password_reset_otps SET is_used = TRUE WHERE id = ?",
-      [otpRecord.id]
-    );
-
-    // Generate temporary token for password reset
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      console.log("❌ JWT_SECRET not found");
-      throw new Error("JWT_SECRET is not defined");
-    }
-
-    // console.log('🔑 Generating reset token...');
-    const resetToken = jwt.sign(
-      { email, purpose: "password_reset" },
-      jwtSecret,
-      { expiresIn: "15m" }
-    );
-
-    console.log("✅ OTP verification successful, sending response");
-    res.json({
-      success: true,
-      message: "OTP verified successfully",
+      message: "New OTP sent to your email",
       data: {
-        resetToken,
+        expiresIn: 300,
+        ...(process.env.NODE_ENV === 'development' && { devOTP: otp })
       },
     });
   } catch (error) {
-    console.error("❌ Verify OTP error:", error);
+    console.error("Resend OTP error:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to verify OTP",
+      message: "Failed to resend OTP",
     });
   }
 });
 
-// Reset Password
-router.post("/reset-password", async (req, res) => {
+// Get current user
+router.get("/me", authenticate, async (req: CustomRequest, res) => {
   try {
-    const { resetToken, newPassword, confirmPassword } = req.body;
-
-    if (!resetToken || !newPassword || !confirmPassword) {
-      return res.status(400).json({
+    const user = await User.findById(req.user!.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({
         success: false,
-        message: "Reset token, new password, and confirm password are required",
+        message: "User not found",
       });
     }
 
-    if (newPassword !== confirmPassword) {
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          createdAt: user.createdAt,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Get user error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get user information",
+    });
+  }
+});
+
+// Change password
+router.put("/change-password", authenticate, async (req: CustomRequest, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: "Passwords do not match",
+        message: "Current password and new password are required",
       });
     }
 
     if (newPassword.length < 6) {
       return res.status(400).json({
         success: false,
-        message: "Password must be at least 6 characters long",
+        message: "New password must be at least 6 characters long",
       });
     }
 
-    // Verify reset token
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      throw new Error("JWT_SECRET is not defined");
+    // Get current user
+    const user = await User.findById(req.user!.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
     }
 
-    let decoded: any;
-    try {
-      decoded = jwt.verify(resetToken, jwtSecret);
-    } catch (error) {
+    // Verify current password
+    const isCurrentPasswordValid = await user.comparePassword(currentPassword);
+    if (!isCurrentPasswordValid) {
       return res.status(400).json({
         success: false,
-        message: "Invalid or expired reset token",
+        message: "Current password is incorrect",
       });
     }
 
-    if (decoded.purpose !== "password_reset") {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid reset token",
-      });
-    }
-
-    // Hash new password
-    const saltRounds = 12;
-    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-
-    // Update password
-    await pool.execute("UPDATE users SET password = ? WHERE email = ?", [
-      hashedPassword,
-      decoded.email,
-    ]);
-
-    // Clean up used OTPs for this email
-    await pool.execute("DELETE FROM password_reset_otps WHERE email = ?", [
-      decoded.email,
-    ]);
+    // Update password (will be hashed by pre-save middleware)
+    user.password = newPassword;
+    await user.save();
 
     res.json({
       success: true,
-      message: "Password reset successfully",
+      message: "Password changed successfully",
     });
   } catch (error) {
-    console.error("Reset password error:", error);
+    console.error("Change password error:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to reset password",
+      message: "Failed to change password",
     });
   }
 });
@@ -754,19 +458,12 @@ router.post("/google", async (req, res) => {
 
     // Check if user exists
     console.log("🔍 Checking if user exists:", email);
-    const [existingUsers] = await pool.execute(
-      "SELECT id, email, first_name, last_name, role FROM users WHERE email = ?",
-      [email]
-    );
-
-    let user;
+    let user = await User.findOne({ email });
     let userRole = "user";
-    console.log("📊 Existing users found:", (existingUsers as any[]).length);
 
-    if ((existingUsers as any[]).length > 0) {
+    if (user) {
       // User exists, log them in
-      user = (existingUsers as any[])[0];
-      console.log("✅ Existing user login:", { id: user.id, email: user.email, role: user.role });
+      console.log("✅ Existing user login:", { id: user._id, email: user.email, role: user.role });
     } else {
       // New user, check if they want admin role
       if (adminPasscode) {
@@ -782,18 +479,15 @@ router.post("/google", async (req, res) => {
       }
 
       // Create new user
-      const [result] = await pool.execute(
-        "INSERT INTO users (email, password, first_name, last_name, role) VALUES (?, ?, ?, ?, ?)",
-        [email, 'google_oauth', given_name, family_name, userRole]
-      );
-
-      user = {
-        id: (result as any).lastInsertRowid,
+      user = new User({
         email,
-        first_name: given_name,
-        last_name: family_name,
+        password: 'google_oauth',
+        firstName: given_name,
+        lastName: family_name,
         role: userRole
-      };
+      });
+
+      await user.save();
     }
 
     // Generate JWT token
@@ -803,7 +497,7 @@ router.post("/google", async (req, res) => {
     }
 
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
+      { userId: user._id, email: user.email, role: user.role },
       jwtSecret,
       { expiresIn: process.env.JWT_EXPIRE || "7d" } as SignOptions
     );
@@ -814,10 +508,10 @@ router.post("/google", async (req, res) => {
       message: "Google login successful",
       data: {
         user: {
-          id: user.id,
+          id: user._id,
           email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
+          firstName: user.firstName,
+          lastName: user.lastName,
           role: user.role,
           picture
         },
@@ -835,57 +529,28 @@ router.post("/google", async (req, res) => {
   }
 });
 
-/**
- * @swagger
- * /api/auth/deactivate:
- *   post:
- *     summary: Deactivate user account
- *     description: Deactivates the current user's account. Account will be deleted after 30 days unless reactivated.
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Account deactivated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
- *                 data:
- *                   type: object
- *                   properties:
- *                     deleteAt:
- *                       type: string
- *                       format: date-time
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
-
 // Deactivate Account
 router.post("/deactivate", authenticate, async (req: CustomRequest, res) => {
   try {
-    const userId = req.user!.userId;
+    const user = await User.findById(req.user!.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
     
     // Set deactivation date (30 days from now for deletion)
     const deactivatedAt = new Date();
-    const deleteAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
     
-    await pool.execute(
-      "UPDATE users SET is_active = FALSE, deactivated_at = ?, delete_at = ? WHERE id = ?",
-      [deactivatedAt.toISOString(), deleteAt.toISOString(), userId]
-    );
+    user.isActive = false;
+    user.deactivatedAt = deactivatedAt;
+    await user.save();
     
     res.json({
       success: true,
       message: "Account deactivated. You have 30 days to reactivate before deletion.",
-      data: { deleteAt }
+      data: { deactivatedAt }
     });
   } catch (error) {
     console.error("Deactivate account error:", error);
@@ -896,72 +561,22 @@ router.post("/deactivate", authenticate, async (req: CustomRequest, res) => {
   }
 });
 
-/**
- * @swagger
- * /api/auth/reactivate:
- *   post:
- *     summary: Reactivate deactivated account
- *     description: Reactivates a deactivated account using email and password verification
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *                 example: user@example.com
- *               password:
- *                 type: string
- *                 example: password123
- *     responses:
- *       200:
- *         description: Account reactivated successfully
- *       401:
- *         description: Invalid password
- *       404:
- *         description: No deactivated account found
- *       410:
- *         description: Account permanently deleted
- */
-
 // Reactivate Account
 router.post("/reactivate", async (req, res) => {
   try {
     const { email, password } = req.body;
     
     // Find deactivated user
-    const [rows] = await pool.execute(
-      "SELECT id, password, delete_at FROM users WHERE email = ? AND is_active = FALSE",
-      [email]
-    );
-    
-    const users = rows as any[];
-    if (users.length === 0) {
+    const user = await User.findOne({ email, isActive: false });
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: "No deactivated account found with this email"
       });
     }
     
-    const user = users[0];
-    
-    // Check if account is past deletion date
-    if (user.delete_at && new Date() > new Date(user.delete_at)) {
-      return res.status(410).json({
-        success: false,
-        message: "Account has been permanently deleted"
-      });
-    }
-    
     // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
@@ -970,10 +585,9 @@ router.post("/reactivate", async (req, res) => {
     }
     
     // Reactivate account
-    await pool.execute(
-      "UPDATE users SET is_active = TRUE, deactivated_at = NULL, delete_at = NULL WHERE id = ?",
-      [user.id]
-    );
+    user.isActive = true;
+    user.deactivatedAt = undefined;
+    await user.save();
     
     res.json({
       success: true,
@@ -988,51 +602,6 @@ router.post("/reactivate", async (req, res) => {
   }
 });
 
-/**
- * @swagger
- * /api/auth/admin/deactivated-users:
- *   get:
- *     summary: Get all deactivated users (Admin only)
- *     description: Retrieves a list of all deactivated user accounts with deletion status
- *     tags: [Auth, Admin]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of deactivated users
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: object
- *                   properties:
- *                     users:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           id:
- *                             type: integer
- *                           email:
- *                             type: string
- *                           first_name:
- *                             type: string
- *                           last_name:
- *                             type: string
- *                           deactivated_at:
- *                             type: string
- *                             format: date-time
- *                           delete_at:
- *                             type: string
- *                             format: date-time
- *       403:
- *         description: Admin access required
- */
-
 // Admin: Get Deactivated Users
 router.get("/admin/deactivated-users", authenticate, async (req: CustomRequest, res) => {
   try {
@@ -1044,13 +613,13 @@ router.get("/admin/deactivated-users", authenticate, async (req: CustomRequest, 
       });
     }
     
-    const [rows] = await pool.execute(
-      "SELECT id, email, first_name, last_name, deactivated_at, delete_at FROM users WHERE is_active = FALSE ORDER BY deactivated_at DESC"
-    );
+    const users = await User.find({ isActive: false })
+      .select('email firstName lastName deactivatedAt')
+      .sort({ deactivatedAt: -1 });
     
     res.json({
       success: true,
-      data: { users: rows }
+      data: { users }
     });
   } catch (error) {
     console.error("Get deactivated users error:", error);
@@ -1060,34 +629,6 @@ router.get("/admin/deactivated-users", authenticate, async (req: CustomRequest, 
     });
   }
 });
-
-/**
- * @swagger
- * /api/auth/admin/reactivate-user:
- *   post:
- *     summary: Force reactivate user account (Admin only)
- *     description: Allows admin to reactivate any deactivated user account without password verification
- *     tags: [Auth, Admin]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - userId
- *             properties:
- *               userId:
- *                 type: integer
- *                 example: 123
- *     responses:
- *       200:
- *         description: User reactivated successfully
- *       403:
- *         description: Admin access required
- */
 
 // Admin: Force Reactivate User
 router.post("/admin/reactivate-user", authenticate, async (req: CustomRequest, res) => {
@@ -1102,10 +643,17 @@ router.post("/admin/reactivate-user", authenticate, async (req: CustomRequest, r
     
     const { userId } = req.body;
     
-    await pool.execute(
-      "UPDATE users SET is_active = TRUE, deactivated_at = NULL, delete_at = NULL WHERE id = ?",
-      [userId]
-    );
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+    
+    user.isActive = true;
+    user.deactivatedAt = undefined;
+    await user.save();
     
     res.json({
       success: true,
@@ -1119,46 +667,5 @@ router.post("/admin/reactivate-user", authenticate, async (req: CustomRequest, r
     });
   }
 });
-
-// Temporary password reset endpoint for debugging (REMOVE IN PRODUCTION)
-router.post(
-  "/debug-reset-password",
-  authenticate,
-  async (req: CustomRequest, res) => {
-    try {
-      const { newPassword } = req.body;
-
-      if (!newPassword || newPassword.length < 6) {
-        return res.status(400).json({
-          success: false,
-          message: "New password must be at least 6 characters long",
-        });
-      }
-
-      console.log("🔧 DEBUG: Resetting password for user:", req.user!.userId);
-
-      // Hash new password
-      const saltRounds = 12;
-      const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-
-      // Update password without checking current password
-      await pool.execute("UPDATE users SET password = ? WHERE id = ?", [
-        hashedNewPassword,
-        req.user!.userId,
-      ]);
-
-      res.json({
-        success: true,
-        message: "Password reset successfully (DEBUG MODE)",
-      });
-    } catch (error) {
-      console.error("Debug password reset error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to reset password",
-      });
-    }
-  }
-);
 
 export default router;

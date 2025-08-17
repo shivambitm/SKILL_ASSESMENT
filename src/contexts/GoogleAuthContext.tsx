@@ -32,9 +32,8 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const initializeGoogleAuth = async () => {
     try {
-      if (GOOGLE_CLIENT_ID === 'your-google-client-id') {
-        toast.error('❌ Google Client ID not configured');
-        console.error('Google Client ID not set in environment variables');
+      if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === 'your-google-client-id') {
+        console.warn('Google Client ID not set in environment variables');
         setIsLoading(false);
         return;
       }
@@ -53,8 +52,7 @@ export const GoogleAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       setIsLoading(false);
     } catch (error) {
-      toast.error('❌ Failed to initialize Google Auth');
-      console.error('Failed to initialize Google Auth:', error);
+      console.warn('Failed to initialize Google Auth:', error);
       setIsLoading(false);
     }
   };

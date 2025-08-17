@@ -82,22 +82,35 @@ const AIChat: React.FC = () => {
   const loadSessions = async () => {
     try {
       const response = await aiApi.getSessions();
-      setSessions(response.data.sessions || []);
+      const sessions = response.data.sessions || [];
+      setSessions(sessions);
       
-      // Load first session if exists
-      if (response.data.sessions && response.data.sessions.length > 0 && !currentSession) {
-        loadSession(response.data.sessions[0]);
+      // Load first session if exists and has valid ID
+      if (sessions.length > 0 && !currentSession) {
+        const firstSession = sessions[0];
+        if (firstSession && typeof firstSession.id === 'number' && firstSession.id > 0) {
+          loadSession(firstSession);
+        } else {
+          createNewSession();
+        }
       } else if (!currentSession) {
         createNewSession();
       }
     } catch (error) {
       console.error('Failed to load sessions:', error);
+      // Create a new session if loading fails
       createNewSession();
     }
   };
 
   const loadSession = async (session: ChatSession) => {
     try {
+      // Validate session ID
+      if (!session || typeof session.id !== 'number' || session.id <= 0) {
+        console.error('Invalid session:', session);
+        return;
+      }
+
       const response = await aiApi.getSessionMessages(session.id);
       const loadedMessages: Message[] = [];
       
@@ -109,26 +122,31 @@ const AIChat: React.FC = () => {
         timestamp: new Date(session.created_at)
       });
 
-      // Add conversation history
-      response.data.messages.forEach((msg: any, index: number) => {
-        loadedMessages.push({
-          id: `user-${index}`,
-          text: msg.message,
-          isUser: true,
-          timestamp: new Date(msg.created_at)
+      // Add conversation history if messages exist
+      if (response.data.messages && Array.isArray(response.data.messages)) {
+        response.data.messages.forEach((msg: any, index: number) => {
+          if (msg.message && msg.response) {
+            loadedMessages.push({
+              id: `user-${index}`,
+              text: msg.message,
+              isUser: true,
+              timestamp: new Date(msg.created_at || session.created_at)
+            });
+            loadedMessages.push({
+              id: `ai-${index}`,
+              text: msg.response,
+              isUser: false,
+              timestamp: new Date(msg.created_at || session.created_at)
+            });
+          }
         });
-        loadedMessages.push({
-          id: `ai-${index}`,
-          text: msg.response,
-          isUser: false,
-          timestamp: new Date(msg.created_at)
-        });
-      });
+      }
 
       setMessages(loadedMessages);
       setCurrentSession(session);
     } catch (error) {
       console.error('Failed to load session:', error);
+      // Still set the session but with default welcome message
       setCurrentSession(session);
       setMessages([{
         id: '1',
@@ -470,7 +488,7 @@ const AIChat: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {quickPrompts.map((prompt, index) => (
                 <button
-                  key={index}
+                  key={`quick-prompt-${index}-${prompt.text.replace(/\s+/g, '-').toLowerCase()}`}
                   onClick={() => setInputMessage(prompt.prompt)}
                   className={`flex items-center gap-2 p-3 text-left ${themeStyles.aiMessage} rounded-lg hover:opacity-80 transition-colors`}
                 >

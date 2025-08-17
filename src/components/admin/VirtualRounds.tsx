@@ -18,6 +18,8 @@ import {
   VolumeX,
   Camera,
   MoreVertical,
+  Circle,
+  Square,
 } from "lucide-react";
 import { useTheme } from "../../contexts/ThemeContext";
 import { webRTCService, Participant, ChatMessage } from "../../services/webrtc";
@@ -39,8 +41,15 @@ const VirtualRounds: React.FC = () => {
   const [joinRequests, setJoinRequests] = useState<
     { id: string; name: string; email?: string }[]
   >([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingStartTime, setRecordingStartTime] = useState<Date | null>(null);
+  const [activeSpeaker, setActiveSpeaker] = useState<string | null>(null);
+  const [screenSharingParticipant, setScreenSharingParticipant] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const screenShareRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
   const { theme } = useTheme();
   const { user } = useAuth();
 
@@ -63,10 +72,21 @@ const VirtualRounds: React.FC = () => {
       setParticipants((prev) => prev.filter((p) => p.id !== participantId));
     };
 
-    webRTCService.onRemoteStream = (participantId, stream) => {
-      const videoElement = remoteVideoRefs.current.get(participantId);
-      if (videoElement) {
-        videoElement.srcObject = stream;
+    webRTCService.onRemoteStream = (participantId, stream, type = 'camera') => {
+      console.log(`📹 [VirtualRounds] Remote stream from ${participantId}, type: ${type}`);
+      if (type === 'screen') {
+        setScreenSharingParticipant(participantId);
+        if (screenShareRef.current) {
+          screenShareRef.current.srcObject = stream;
+        }
+      } else {
+        const videoElement = remoteVideoRefs.current.get(participantId);
+        if (videoElement) {
+          videoElement.srcObject = stream;
+          console.log(`✅ [VirtualRounds] Set stream for participant ${participantId}`);
+        } else {
+          console.warn(`⚠️ [VirtualRounds] No video element found for ${participantId}`);
+        }
       }
     };
 
@@ -92,6 +112,32 @@ const VirtualRounds: React.FC = () => {
           p.id === participantId ? { ...p, screenSharing: enabled } : p
         )
       );
+      
+      if (enabled) {
+        setScreenSharingParticipant(participantId);
+      } else {
+        setScreenSharingParticipant(null);
+      }
+    };
+    
+    webRTCService.onActiveSpeakerChanged = (participantId, participantName) => {
+      setActiveSpeaker(participantId);
+    };
+    
+    webRTCService.onScreenShareStarted = (participantId, stream) => {
+      setScreenSharingParticipant(participantId);
+      if (screenShareRef.current) {
+        screenShareRef.current.srcObject = stream;
+      }
+    };
+    
+    webRTCService.onScreenShareStopped = (participantId) => {
+      if (screenSharingParticipant === participantId) {
+        setScreenSharingParticipant(null);
+      }
+      if (screenShareRef.current) {
+        screenShareRef.current.srcObject = null;
+      }
     };
 
     webRTCService.onParticipantHandRaised = (participantId, raised, name) => {
@@ -315,6 +361,74 @@ const VirtualRounds: React.FC = () => {
     if (!newMessage.trim()) return;
     webRTCService.sendMessage(newMessage);
     setNewMessage("");
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { mediaSource: 'screen' },
+        audio: true
+      });
+      
+      recordedChunksRef.current = [];
+      mediaRecorderRef.current = new MediaRecorder(stream, {
+        mimeType: 'video/webm;codecs=vp9'
+      });
+      
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordedChunksRef.current.push(event.data);
+        }
+      };
+      
+      mediaRecorderRef.current.onstop = async () => {
+        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+        await uploadRecording(blob);
+      };
+      
+      mediaRecorderRef.current.start(1000);
+      setIsRecording(true);
+      setRecordingStartTime(new Date());
+      
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+      alert('Failed to start recording. Please try again.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      setRecordingStartTime(null);
+    }
+  };
+
+  const uploadRecording = async (blob: Blob) => {
+    try {
+      const formData = new FormData();
+      formData.append('recording', blob, `meeting-${meetingId}-${Date.now()}.webm`);
+      formData.append('meetingId', meetingId);
+      formData.append('participants', JSON.stringify(participants.map(p => ({ name: p.name, email: p.email }))));
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/recording/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        alert(`Recording saved successfully! Drive link: ${result.driveLink}`);
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (error) {
+      console.error('Failed to upload recording:', error);
+      alert('Failed to save recording. Please try again.');
+    }
   };
 
   const getThemeStyles = () => {
@@ -637,11 +751,35 @@ const VirtualRounds: React.FC = () => {
       <div className="flex-1 flex">
         {/* Main Video Area */}
         <div className="flex-1 p-4">
+          {/* Screen Share Display - Always on top when active */}
+          {screenSharingParticipant && (
+            <div className="mb-4">
+              <div className="bg-gray-900 rounded-lg relative overflow-hidden" style={{ aspectRatio: '16/9' }}>
+                <video
+                  ref={screenShareRef}
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-contain bg-black"
+                />
+                
+                {/* Screen Share Indicator */}
+                <div className="absolute top-4 left-4 bg-blue-500 text-white px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2">
+                  <Monitor className="w-4 h-4" />
+                  <span>
+                    {participants.find(p => p.id === screenSharingParticipant)?.name || 'Unknown'} is sharing screen
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {viewMode === "grid" ? (
             /* Grid View */
-            <div className="h-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className={`h-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 ${screenSharingParticipant ? 'h-64' : ''}`}>
               {/* Local Video */}
-              <div className="bg-gray-900 rounded-lg relative overflow-hidden aspect-video">
+              <div className={`bg-gray-900 rounded-lg relative overflow-hidden aspect-video transition-all duration-300 ${
+                activeSpeaker === 'local' ? 'ring-4 ring-green-500 ring-opacity-75 shadow-lg shadow-green-500/25 scale-105' : ''
+              }`}>
                 <video
                   ref={videoRef}
                   autoPlay
@@ -717,7 +855,11 @@ const VirtualRounds: React.FC = () => {
                 .map((participant) => (
                   <div
                     key={participant.id}
-                    className="bg-gray-900 rounded-lg relative overflow-hidden aspect-video"
+                    className={`bg-gray-900 rounded-lg relative overflow-hidden aspect-video transition-all duration-300 ${
+                      activeSpeaker === participant.id 
+                        ? 'ring-4 ring-green-500 ring-opacity-75 shadow-lg shadow-green-500/25 scale-105 z-10' 
+                        : ''
+                    }`}
                   >
                     <video
                       ref={(el) => {
@@ -785,10 +927,12 @@ const VirtualRounds: React.FC = () => {
                 ))}
             </div>
           ) : (
-            /* Speaker View */
+            /* Speaker View - Show active speaker or admin */
             <div className="h-full flex flex-col">
               {/* Main Speaker */}
-              <div className="flex-1 bg-gray-900 rounded-lg relative overflow-hidden mb-4">
+              <div className={`flex-1 bg-gray-900 rounded-lg relative overflow-hidden mb-4 transition-all duration-300 ${
+                activeSpeaker ? 'ring-4 ring-green-500 ring-opacity-75 shadow-lg shadow-green-500/25' : ''
+              }`}>
                 <video
                   ref={videoRef}
                   autoPlay
@@ -832,7 +976,9 @@ const VirtualRounds: React.FC = () => {
                     .map((participant) => (
                       <div
                         key={participant.id}
-                        className="w-32 bg-gray-900 rounded relative overflow-hidden"
+                        className={`w-32 bg-gray-900 rounded relative overflow-hidden transition-all duration-300 ${
+                          activeSpeaker === participant.id ? 'ring-2 ring-green-500' : ''
+                        }`}
                       >
                         <video
                           ref={(el) => {
@@ -994,12 +1140,38 @@ const VirtualRounds: React.FC = () => {
             }}
             className={`p-3 rounded-full transition-all ${
               handRaised
-                ? "bg-yellow-500 hover:bg-yellow-600 text-white"
+                ? "bg-yellow-500 hover:bg-yellow-600 text-white animate-bounce"
                 : "bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
             }`}
-            title="Raise hand"
+            title={handRaised ? "Lower hand" : "Raise hand"}
           >
             <Hand className="w-5 h-5" />
+          </button>
+
+          {/* Chat Toggle */}
+          {/* Recording Control */}
+          <button
+            onClick={isRecording ? stopRecording : startRecording}
+            className={`relative p-3 rounded-full transition-all overflow-hidden ${
+              isRecording
+                ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse'
+                : 'bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white shadow-lg'
+            }`}
+            title={isRecording ? 'Stop Recording' : 'Start Recording'}
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-red-400/20 to-pink-400/20 animate-pulse"></div>
+            <div className="relative flex items-center justify-center">
+              {isRecording ? (
+                <div className="w-3 h-3 bg-white rounded-sm"></div>
+              ) : (
+                <div className="w-4 h-4 bg-white rounded-full border-2 border-white"></div>
+              )}
+            </div>
+            {isRecording && recordingStartTime && (
+              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-2 py-1 rounded text-xs font-mono">
+                {Math.floor((Date.now() - recordingStartTime.getTime()) / 1000 / 60)}:{String(Math.floor((Date.now() - recordingStartTime.getTime()) / 1000 % 60)).padStart(2, '0')}
+              </div>
+            )}
           </button>
 
           {/* Chat Toggle */}

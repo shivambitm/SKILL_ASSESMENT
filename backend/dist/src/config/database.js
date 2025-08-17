@@ -3,244 +3,53 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.registerUser = exports.pool = exports.query = exports.getDB = exports.connectDB = void 0;
-const better_sqlite3_1 = __importDefault(require("better-sqlite3"));
+exports.query = exports.pool = exports.getDB = exports.connectDB = void 0;
+const mongoose_1 = __importDefault(require("mongoose"));
 const dotenv_1 = __importDefault(require("dotenv"));
-const path_1 = __importDefault(require("path"));
-const bcryptjs_1 = __importDefault(require("bcryptjs"));
 dotenv_1.default.config();
-const dbPath = process.env.DB_PATH || path_1.default.join(process.cwd(), "skill_assessment.db");
-let db;
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/skill_assessment";
 const connectDB = async () => {
     try {
-        db = new better_sqlite3_1.default(dbPath);
-        console.log("Database connected successfully");
-        // Enable foreign keys
-        db.pragma("foreign_keys = ON");
-        // Production optimizations
-        if (process.env.NODE_ENV === 'production') {
-            db.pragma("journal_mode = WAL");
-            db.pragma("synchronous = NORMAL");
-            db.pragma("cache_size = 10000");
-            db.pragma("temp_store = MEMORY");
-            db.pragma("mmap_size = 268435456");
-        }
-        // Run migrations
-        await runMigrations();
+        console.log('🔌 [Database] Connecting to MongoDB...');
+        await mongoose_1.default.connect(MONGODB_URI, {
+            dbName: process.env.DB_NAME || 'skill_assessment'
+        });
+        console.log('✅ [Database] MongoDB connected successfully');
+        console.log('📊 [Database] Database:', mongoose_1.default.connection.name);
     }
     catch (error) {
-        console.error("Database connection failed:", error);
+        console.error('❌ [Database] MongoDB connection failed:', error);
         throw error;
     }
 };
 exports.connectDB = connectDB;
-const runMigrations = async () => {
-    // Create notifications table
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS notifications (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        message TEXT NOT NULL,
-        is_read BOOLEAN DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      )
-    `);
-    // Create password_reset_otps table
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS password_reset_otps (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT NOT NULL,
-        otp TEXT NOT NULL,
-        expires_at DATETIME NOT NULL,
-        is_used BOOLEAN DEFAULT FALSE,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    // Create index for password_reset_otps
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_password_reset_otps_email ON password_reset_otps(email)`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_password_reset_otps_otp ON password_reset_otps(otp)`);
-    // Create AI chat tables
-    db.exec(`
-    CREATE TABLE IF NOT EXISTS chat_sessions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      title TEXT NOT NULL DEFAULT 'New Chat',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    )
-  `);
-    db.exec(`
-    CREATE TABLE IF NOT EXISTS chat_messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      session_id INTEGER NOT NULL,
-      message TEXT NOT NULL,
-      response TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
-    )
-  `);
-    // Create indexes for AI chat tables
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions(user_id)`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages(session_id)`);
-    try {
-        // Create users table
-        db.exec(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        first_name TEXT NOT NULL,
-        last_name TEXT NOT NULL,
-        role TEXT DEFAULT 'user' CHECK(role IN ('admin', 'user')),
-        is_active BOOLEAN DEFAULT TRUE,
-        deactivated_at TEXT,
-        delete_at TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-        // Create indexes for users table
-        db.exec(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
-        db.exec(`CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)`);
-        db.exec(`CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active)`);
-        db.exec(`CREATE INDEX IF NOT EXISTS idx_users_deactivated_at ON users(deactivated_at)`);
-        db.exec(`CREATE INDEX IF NOT EXISTS idx_users_delete_at ON users(delete_at)`);
-        // Create skills table
-        db.exec(`
-      CREATE TABLE IF NOT EXISTS skills (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        description TEXT,
-        category TEXT,
-        is_active BOOLEAN DEFAULT TRUE,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-        // Create indexes for skills table
-        db.exec(`CREATE INDEX IF NOT EXISTS idx_skills_name ON skills(name)`);
-        db.exec(`CREATE INDEX IF NOT EXISTS idx_skills_category ON skills(category)`);
-        // Create questions table
-        db.exec(`
-      CREATE TABLE IF NOT EXISTS questions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        skill_id INTEGER NOT NULL,
-        question_text TEXT NOT NULL,
-        option_a TEXT NOT NULL,
-        option_b TEXT NOT NULL,
-        option_c TEXT NOT NULL,
-        option_d TEXT NOT NULL,
-        correct_answer TEXT NOT NULL CHECK(correct_answer IN ('A', 'B', 'C', 'D')),
-        difficulty TEXT DEFAULT 'medium' CHECK(difficulty IN ('easy', 'medium', 'hard')),
-        points INTEGER DEFAULT 1,
-        is_active BOOLEAN DEFAULT TRUE,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE CASCADE
-      )
-    `);
-        // Create indexes for questions table
-        db.exec(`CREATE INDEX IF NOT EXISTS idx_questions_skill_id ON questions(skill_id)`);
-        db.exec(`CREATE INDEX IF NOT EXISTS idx_questions_difficulty ON questions(difficulty)`);
-        // Create quiz_attempts table
-        db.exec(`
-      CREATE TABLE IF NOT EXISTS quiz_attempts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        skill_id INTEGER NOT NULL,
-        total_questions INTEGER NOT NULL,
-        correct_answers INTEGER NOT NULL,
-        score_percentage REAL NOT NULL,
-        time_taken INTEGER,
-        started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        completed_at DATETIME,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-        FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE CASCADE
-      )
-    `);
-        // Create indexes for quiz_attempts table
-        db.exec(`CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user_id ON quiz_attempts(user_id)`);
-        db.exec(`CREATE INDEX IF NOT EXISTS idx_quiz_attempts_skill_id ON quiz_attempts(skill_id)`);
-        db.exec(`CREATE INDEX IF NOT EXISTS idx_quiz_attempts_completed_at ON quiz_attempts(completed_at)`);
-        // Create quiz_answers table
-        db.exec(`
-      CREATE TABLE IF NOT EXISTS quiz_answers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        quiz_attempt_id INTEGER NOT NULL,
-        question_id INTEGER NOT NULL,
-        selected_answer TEXT NOT NULL CHECK(selected_answer IN ('A', 'B', 'C', 'D')),
-        is_correct BOOLEAN NOT NULL,
-        time_taken INTEGER,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (quiz_attempt_id) REFERENCES quiz_attempts(id) ON DELETE CASCADE,
-        FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
-      )
-    `);
-        // Create indexes for quiz_answers table
-        db.exec(`CREATE INDEX IF NOT EXISTS idx_quiz_answers_quiz_attempt_id ON quiz_answers(quiz_attempt_id)`);
-        db.exec(`CREATE INDEX IF NOT EXISTS idx_quiz_answers_question_id ON quiz_answers(question_id)`);
-        console.log("Database migrations completed successfully");
-    }
-    catch (error) {
-        console.error("Error running migrations:", error);
-        throw error;
-    }
-};
+// Get MongoDB connection
 const getDB = () => {
-    if (!db) {
+    if (!mongoose_1.default.connection.readyState) {
         throw new Error("Database not connected");
     }
-    return db;
+    return mongoose_1.default.connection.db;
 };
 exports.getDB = getDB;
-// Helper function to execute queries with parameters
-const query = (sql, params = []) => {
-    const db = (0, exports.getDB)();
-    try {
-        if (sql.trim().toLowerCase().startsWith("select")) {
-            return [db.prepare(sql).all(...params)];
-        }
-        else {
-            const result = db.prepare(sql).run(...params);
-            return [result];
-        }
-    }
-    catch (error) {
-        console.error("Query error:", error);
-        throw error;
-    }
-};
-exports.query = query;
-// For compatibility with existing code
+// Import all models to ensure they're registered
+require("../models/User");
+require("../models/Skill");
+require("../models/Question");
+require("../models/QuizAttempt");
+require("../models/QuizAnswer");
+require("../models/PasswordResetOtp");
+// For compatibility with existing code - now throws helpful error
 exports.pool = {
-    execute: exports.query,
-    end: () => {
-        if (db) {
-            db.close();
-        }
+    execute: async (sql, params = []) => {
+        throw new Error(`SQL query attempted: "${sql}". Use Mongoose models instead. Available models: User, Skill, Question, QuizAttempt, QuizAnswer, PasswordResetOtp`);
+    },
+    end: async () => {
+        await mongoose_1.default.connection.close();
     },
 };
-// Register user function with email validation
-const registerUser = async (userData) => {
-    try {
-        const { email, password, firstName, lastName, role } = userData;
-        const hashedPassword = bcryptjs_1.default.hashSync(password, 10);
-        const stmt = db.prepare(`
-      INSERT INTO users (email, password, first_name, last_name, role)
-      VALUES (?, ?, ?, ?, ?)
-    `);
-        const result = stmt.run(email, hashedPassword, firstName, lastName, role);
-        return { id: result.lastInsertRowid, email, firstName, lastName, role };
-    }
-    catch (error) {
-        if (error instanceof Error &&
-            error.message.includes("UNIQUE constraint failed")) {
-            throw new Error("Email already exists");
-        }
-        throw error;
-    }
+// Helper function for legacy compatibility
+const query = async (sql, params = []) => {
+    throw new Error(`SQL query attempted: "${sql}". Use Mongoose models instead.`);
 };
-exports.registerUser = registerUser;
+exports.query = query;
 //# sourceMappingURL=database.js.map

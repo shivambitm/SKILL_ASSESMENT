@@ -8,6 +8,7 @@ import Modal from "../../components/common/Modal";
 import PasswordInput from "../../components/common/PasswordInput";
 import ThemeSwitcher from "../../components/common/ThemeSwitcher";
 import AdminPasscodeModal from "../../components/AdminPasscodeModal";
+import OTPVerification from "../../components/auth/OTPVerification";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useToast } from "../../contexts/ToastContext";
 import { BookOpen } from "lucide-react";
@@ -21,6 +22,8 @@ const Login: React.FC = () => {
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [pendingUserInfo, setPendingUserInfo] = useState<any>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showOTPVerification, setShowOTPVerification] = useState(false);
+  const [otpEmail, setOtpEmail] = useState("");
 
   const { login } = useAuth();
   const { signIn } = useGoogleAuth();
@@ -52,9 +55,17 @@ const Login: React.FC = () => {
     // console.log("🔒 Password length:", password.length);
 
     try {
-      // console.log("🚀 Calling login function...");
-      await login(email, password);
-      // After login, get the user from localStorage (since login sets it)
+      const result = await login(email, password);
+      
+      // Check if OTP verification is required
+      if (result?.requiresOTP) {
+        setOtpEmail(email);
+        setShowOTPVerification(true);
+        showSuccess("OTP sent to your email!");
+        return;
+      }
+      
+      // Normal login success
       const userData = JSON.parse(localStorage.getItem("user") || "null");
       showSuccess(`Welcome back, ${userData?.firstName || 'User'}!`);
       if (userData && userData.role === "admin") {
@@ -64,7 +75,6 @@ const Login: React.FC = () => {
       }
     } catch (err: any) {
       console.error("❌ Login error:", err);
-      console.error("❌ Error response:", err.response?.data);
       const errorMsg = err.response?.data?.message || "Login failed";
       showError(errorMsg);
       setError(errorMsg);
@@ -89,6 +99,37 @@ const Login: React.FC = () => {
       setGoogleLoading(false);
     }
   };
+
+  const handleOTPSuccess = (data: any) => {
+    // Store user data and token
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("user", JSON.stringify(data.user));
+    
+    showSuccess(`Welcome back, ${data.user.firstName}!`);
+    
+    // Force immediate redirect
+    if (data.user.role === "admin") {
+      window.location.replace("/admin/dashboard");
+    } else {
+      window.location.replace("/dashboard");
+    }
+  };
+
+  const handleBackToLogin = () => {
+    setShowOTPVerification(false);
+    setOtpEmail("");
+  };
+
+  // Show OTP verification screen
+  if (showOTPVerification) {
+    return (
+      <OTPVerification
+        email={otpEmail}
+        onSuccess={handleOTPSuccess}
+        onBack={handleBackToLogin}
+      />
+    );
+  }
 
   return (
     <div
