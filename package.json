@@ -25,7 +25,7 @@
     "clean": "rm -rf node_modules dist && cd backend && rm -rf node_modules dist"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.8.0",
+    "@tanstack/react-query": "^5.90.1",
     "@vercel/analytics": "^1.5.0",
     "axios": "^1.6.0",
     "date-fns": "^2.30.0",
